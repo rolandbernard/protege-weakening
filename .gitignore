@@ -1,0 +1,12 @@
+.vscode/
+.vim/
+.project
+.settings/
+.classpath
+target/
+bin/
+*~
+*.class
+/bin/
+*-made-inconsistent.owl
+tmp.*
