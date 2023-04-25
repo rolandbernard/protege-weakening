@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<?eclipse version="3.0"?>
+
+<plugin>
+
+    <extension id="toolmenu1" point="org.protege.editor.core.application.EditorKitMenuAction">
+        <name value="Example menu item" />
+        <path value="org.protege.editor.owl.menu.tools/SlotG-A" />
+        <toolTip value="This example menu item appears in the Tools menu" />
+        <class value="www.ontologyutils.protege.TestMenu" />
+        <editorKitId value="any" />
+    </extension>
+
+</plugin>

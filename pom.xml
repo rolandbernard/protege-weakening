@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>ontologyutils</groupId>
+    <artifactId>protege-weakening</artifactId>
+    <version>0.0.1</version>
+    <packaging>bundle</packaging>
+
+    <name>Protege Plugin for Axiom Weakening</name>
+    <description>Add support for axiom weakening to Protégé.</description>
+
+    <properties>
+        <maven.compiler.source>11</maven.compiler.source>
+        <maven.compiler.target>11</maven.compiler.target>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    </properties>
+
+    <repositories>
+        <repository>
+            <id>github</id>
+            <url>https://maven.pkg.github.com/rolandbernard/*</url>
+        </repository>
+    </repositories>
+
+    <dependencies>
+        <dependency>
+            <groupId>edu.stanford.protege</groupId>
+            <artifactId>protege-editor-owl</artifactId>
+            <version>5.0.0</version>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <resources>
+            <resource>
+                <!-- Use resource filtering to replace references to the artifactId in the
+                plugin.xml file -->
+                <directory>src/main/resources</directory>
+                <filtering>true</filtering>
+            </resource>
+        </resources>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.felix</groupId>
+                <artifactId>maven-bundle-plugin</artifactId>
+                <version>5.1.8</version>
+                <extensions>true</extensions>
+                <configuration>
+                    <instructions>
+                        <Export-Package>org.foo.myproject.protege</Export-Package>
+                        <Embed-Dependency>*;scope=runtime</Embed-Dependency>
+                        <Bundle-Activator>org.protege.editor.owl.ProtegeOWL</Bundle-Activator>
+                        <Bundle-ClassPath>.</Bundle-ClassPath>
+                        <Bundle-SymbolicName>${project.artifactId};singleton:=true</Bundle-SymbolicName>
+                        <Bundle-Vendor>Roland Bernard</Bundle-Vendor>
+                    </instructions>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>net.revelc.code.formatter</groupId>
+                <artifactId>formatter-maven-plugin</artifactId>
+                <version>2.22.0</version>
+                <configuration>
+                    <configFile>${project.basedir}/formatter-config.xml</configFile>
+                    <directories>
+                        <directory>${project.build.sourceDirectory}</directory>
+                        <directory>${project.basedir}/src</directory>
+                        <directory>${project.build.directory}/generated-sources</directory>
+                    </directories>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+</project>
