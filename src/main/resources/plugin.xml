@@ -2,87 +2,81 @@
 <?eclipse version="3.0"?>
 
 <plugin>
-    <!-- Menus -->
+	<!-- Menus -->
 
-    <extension id="autorepair" point="org.protege.editor.core.application.EditorKitMenuAction">
-        <name value="Automatic Repair" />
-        <path value="org.protege.editor.owl.menu.tools/SlotG-A" />
-        <editorKitId value="any" />
-    </extension>
+	<extension id="autorepair" point="org.protege.editor.core.application.EditorKitMenuAction">
+		<name value="Automatic Repair" />
+		<path value="org.protege.editor.owl.menu.tools/SlotG-A" />
+		<editorKitId value="any" />
+	</extension>
 
-    <extension id="normalizetosroiq" point="org.protege.editor.core.application.EditorKitMenuAction">
-        <name value="Normalize to SROIQ" />
-        <toolTip value="Normalize the ontology such that it is in SROIQ" />
-        <path value="${project.artifactId}.autorepair/SlotCR-A" />
-        <class value="www.ontologyutils.protege.menu.NormalizeToSroiq" />
-        <editorKitId value="OWLEditorKit" />
-    </extension>
+	<extension id="normalizetosroiq" point="org.protege.editor.core.application.EditorKitMenuAction">
+		<name value="Normalize to SROIQ" />
+		<toolTip value="Normalize the ontology such that it is in SROIQ" />
+		<path value="${project.artifactId}.autorepair/SlotCR-A" />
+		<class value="www.ontologyutils.protege.menu.NormalizeToSroiq" />
+		<editorKitId value="OWLEditorKit" />
+	</extension>
 
-    <extension id="mcsrepair" point="org.protege.editor.core.application.EditorKitMenuAction">
-        <name value="Maximal Consistent Subset" />
-        <toolTip value="Repair using random maximal consistent subset" />
-        <path value="${project.artifactId}.autorepair/SlotCR-B" />
-        <editorKitId value="OWLEditorKit" />
-    </extension>
+	<extension id="mcsrepair" point="org.protege.editor.core.application.EditorKitMenuAction">
+		<name value="Maximal Consistent Subset" />
+		<toolTip value="Repair using random maximal consistent subset" />
+		<path value="${project.artifactId}.autorepair/SlotCR-B" />
+		<editorKitId value="OWLEditorKit" />
+	</extension>
 
-    <extension id="fastrepairmcs"
-        point="org.protege.editor.core.application.EditorKitMenuAction">
-        <name value="Fast" />
-        <path value="${project.artifactId}.mcsrepair/SlotA-A" />
-        <toolTip value="Compute only a single maximal consistent subset" />
-        <class value="www.ontologyutils.protege.menu.FastAutoRepairMcs" />
-        <editorKitId value="any" />
-    </extension>
+	<extension id="fastrepairmcs" point="org.protege.editor.core.application.EditorKitMenuAction">
+		<name value="Fast" />
+		<path value="${project.artifactId}.mcsrepair/SlotA-A" />
+		<toolTip value="Compute only a single maximal consistent subset" />
+		<class value="www.ontologyutils.protege.menu.FastAutoRepairMcs" />
+		<editorKitId value="any" />
+	</extension>
 
-    <extension id="normalrepairmcs"
-        point="org.protege.editor.core.application.EditorKitMenuAction">
-        <name value="Normal" />
-        <path value="${project.artifactId}.mcsrepair/SlotA-B" />
-        <toolTip value="Compute some maximal consistent subsets" />
-        <class value="www.ontologyutils.protege.menu.NormalAutoRepairMcs" />
-        <editorKitId value="any" />
-    </extension>
+	<extension id="normalrepairmcs" point="org.protege.editor.core.application.EditorKitMenuAction">
+		<name value="Normal" />
+		<path value="${project.artifactId}.mcsrepair/SlotA-B" />
+		<toolTip value="Compute some maximal consistent subsets" />
+		<class value="www.ontologyutils.protege.menu.NormalAutoRepairMcs" />
+		<editorKitId value="any" />
+	</extension>
 
-    <extension id="slowrepairmcs"
-        point="org.protege.editor.core.application.EditorKitMenuAction">
-        <name value="Slow" />
-        <path value="${project.artifactId}.mcsrepair/SlotA-C" />
-        <toolTip value="Compute all maximal consistent subsets" />
-        <class value="www.ontologyutils.protege.menu.SlowAutoRepairMcs" />
-        <editorKitId value="any" />
-    </extension>
+	<extension id="slowrepairmcs" point="org.protege.editor.core.application.EditorKitMenuAction">
+		<name value="Slow" />
+		<path value="${project.artifactId}.mcsrepair/SlotA-C" />
+		<toolTip value="Compute all maximal consistent subsets" />
+		<class value="www.ontologyutils.protege.menu.SlowAutoRepairMcs" />
+		<editorKitId value="any" />
+	</extension>
 
-    <extension id="weakeningrepair" point="org.protege.editor.core.application.EditorKitMenuAction">
-        <name value="Axiom Weakening" />
-        <path value="${project.artifactId}.autorepair/SlotCR-C" />
-        <toolTip value="Repair using iterated axiom weakening" />
-        <editorKitId value="OWLEditorKit" />
-    </extension>
+	<extension id="weakeningrepair" point="org.protege.editor.core.application.EditorKitMenuAction">
+		<name value="Axiom Weakening" />
+		<path value="${project.artifactId}.autorepair/SlotCR-C" />
+		<toolTip value="Repair using iterated axiom weakening" />
+		<editorKitId value="OWLEditorKit" />
+	</extension>
 
-    <extension id="fastweakeningrepair"
-        point="org.protege.editor.core.application.EditorKitMenuAction">
-        <name value="Fast" />
-        <path value="${project.artifactId}.weakeningrepair/SlotA-A" />
-        <toolTip value="Use fastest available selection strategies" />
-        <class value="www.ontologyutils.protege.menu.FastAutoRepairWeakening" />
-        <editorKitId value="any" />
-    </extension>
+	<extension id="fastweakeningrepair" point="org.protege.editor.core.application.EditorKitMenuAction">
+		<name value="Fast" />
+		<path value="${project.artifactId}.weakeningrepair/SlotA-A" />
+		<toolTip value="Use fastest available selection strategies" />
+		<class value="www.ontologyutils.protege.menu.FastAutoRepairWeakening" />
+		<editorKitId value="any" />
+	</extension>
 
-    <extension id="normalweakeningrepair"
-        point="org.protege.editor.core.application.EditorKitMenuAction">
-        <name value="Normal" />
-        <path value="${project.artifactId}.weakeningrepair/SlotA-B" />
-        <toolTip value="Use default selection strategies" />
-        <class value="www.ontologyutils.protege.menu.NormalAutoRepairWeakening" />
-        <editorKitId value="any" />
-    </extension>
+	<extension id="normalweakeningrepair" point="org.protege.editor.core.application.EditorKitMenuAction">
+		<name value="Normal" />
+		<path value="${project.artifactId}.weakeningrepair/SlotA-B" />
+		<toolTip value="Use default selection strategies" />
+		<class value="www.ontologyutils.protege.menu.NormalAutoRepairWeakening" />
+		<editorKitId value="any" />
+	</extension>
 
-    <extension id="slowweakeningrepair"
-        point="org.protege.editor.core.application.EditorKitMenuAction">
-        <name value="Slow" />
-        <path value="${project.artifactId}.weakeningrepair/SlotA-C" />
-        <toolTip value="Use most complete selection strategies" />
-        <class value="www.ontologyutils.protege.menu.SlowAutoRepairWeakening" />
-        <editorKitId value="any" />
-    </extension>
+	<extension id="slowweakeningrepair" point="org.protege.editor.core.application.EditorKitMenuAction">
+		<name value="Slow" />
+		<path value="${project.artifactId}.weakeningrepair/SlotA-C" />
+		<toolTip value="Use most complete selection strategies" />
+		<class value="www.ontologyutils.protege.menu.SlowAutoRepairWeakening" />
+		<editorKitId value="any" />
+	</extension>
 </plugin>
