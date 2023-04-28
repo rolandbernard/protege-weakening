@@ -2,15 +2,19 @@ package www.ontologyutils.protege.menu;
 
 import java.awt.event.ActionEvent;
 
-import org.protege.editor.owl.ui.action.ProtegeOWLAction;
+import www.ontologyutils.normalization.SroiqNormalization;
+import www.ontologyutils.toolbox.Ontology;
 
-public class NormalizeToSroiq extends ProtegeOWLAction {
-    public void initialise() throws Exception {
-    }
+public class NormalizeToSroiq extends MutationAction {
+    private SroiqNormalization normalization = new SroiqNormalization();
 
-    public void dispose() throws Exception {
-    }
-
+    @Override
     public void actionPerformed(final ActionEvent event) {
+        final var reasonerFactory = getOWLModelManager().getOWLReasonerManager()
+                .getCurrentReasonerFactory().getReasonerFactory();
+        final var owlOntology = getOWLModelManager().getActiveOntology();
+        final var ontology = Ontology.withAxiomsFrom(owlOntology, reasonerFactory);
+        normalization.apply(ontology);
+        ontology.applyChangesTo(owlOntology);
     }
 }

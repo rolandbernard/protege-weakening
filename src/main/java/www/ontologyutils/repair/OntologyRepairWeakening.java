@@ -133,7 +133,7 @@ public class OntologyRepairWeakening extends OntologyRepair {
     @Override
     public void repair(final Ontology ontology) {
         final var refAxioms = getRefAxioms(ontology);
-        try (final var refOntology = Ontology.withAxioms(refAxioms)) {
+        try (final var refOntology = ontology.cloneWith(refAxioms)) {
             try (final var axiomWeakener = new AxiomWeakener(refOntology, ontology)) {
                 while (!isRepaired(ontology)) {
                     final var badAxioms = findBadAxioms(ontology);

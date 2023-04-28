@@ -214,14 +214,4 @@ public final class Utils {
                 .replaceAll("<http.*?#", "").replaceAll(">", "").replaceAll("<", "")
                 .replaceFirst("Annotation(.*?) ", "");
     }
-
-    /**
-     * @param axioms
-     * @return True iff {@code axioms} are consistent together.
-     */
-    public static boolean isConsistent(final Collection<? extends OWLAxiom> axioms) {
-        try (final var ontology = Ontology.withAxioms(axioms)) {
-            return ontology.isConsistent();
-        }
-    }
 }
