@@ -10,10 +10,18 @@
         <editorKitId value="any" />
     </extension>
 
+    <extension id="normalizetosroiq" point="org.protege.editor.core.application.EditorKitMenuAction">
+        <name value="Normalize to SROIQ" />
+        <toolTip value="Normalize the ontology such that it is in SROIQ" />
+        <path value="${project.artifactId}.autorepair/SlotCR-A" />
+        <class value="www.ontologyutils.protege.menu.NormalizeToSroiq" />
+        <editorKitId value="OWLEditorKit" />
+    </extension>
+
     <extension id="mcsrepair" point="org.protege.editor.core.application.EditorKitMenuAction">
         <name value="Maximal Consistent Subset" />
         <toolTip value="Repair using random maximal consistent subset" />
-        <path value="${project.artifactId}.autorepair/SlotCR-A" />
+        <path value="${project.artifactId}.autorepair/SlotCR-B" />
         <editorKitId value="OWLEditorKit" />
     </extension>
 
@@ -46,7 +54,7 @@
 
     <extension id="weakeningrepair" point="org.protege.editor.core.application.EditorKitMenuAction">
         <name value="Axiom Weakening" />
-        <path value="${project.artifactId}.autorepair/SlotCR-A" />
+        <path value="${project.artifactId}.autorepair/SlotCR-C" />
         <toolTip value="Repair using iterated axiom weakening" />
         <editorKitId value="OWLEditorKit" />
     </extension>
