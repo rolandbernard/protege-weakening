@@ -20,7 +20,7 @@ import www.ontologyutils.toolbox.*;
  */
 public class OntologyRepairWeakening extends OntologyRepair {
     public static enum RefOntologyStrategy {
-        RANDOM_MCS, SOME_MCS, ONE_MCS, LARGEST_MCS, INTERSECTION_OF_MCS,
+        RANDOM_MCS, SOME_MCS, ONE_MCS, LARGEST_MCS, INTERSECTION_OF_MCS, INTERSECTION_OF_SOME_MCS,
     }
 
     public static enum BadAxiomStrategy {
@@ -73,17 +73,23 @@ public class OntologyRepairWeakening extends OntologyRepair {
     public Set<OWLAxiom> getRefAxioms(final Ontology ontology) {
         switch (refOntologySource) {
             case INTERSECTION_OF_MCS: {
-                return ontology.maximalConsistentSubsets(isRepaired).reduce((a, b) -> {
+                return mcsPeekInfo(ontology.maximalConsistentSubsets(isRepaired)).reduce((a, b) -> {
+                    a.removeIf(axiom -> !b.contains(axiom));
+                    return a;
+                }).get();
+            }
+            case INTERSECTION_OF_SOME_MCS: {
+                return mcsPeekInfo(ontology.someMaximalConsistentSubsets(isRepaired)).reduce((a, b) -> {
                     a.removeIf(axiom -> !b.contains(axiom));
                     return a;
                 }).get();
             }
             case LARGEST_MCS:
-                return Utils.randomChoice(ontology.largestMaximalConsistentSubsets(isRepaired));
+                return Utils.randomChoice(mcsPeekInfo(ontology.largestMaximalConsistentSubsets(isRepaired)));
             case RANDOM_MCS:
-                return Utils.randomChoice(ontology.maximalConsistentSubsets(isRepaired));
+                return Utils.randomChoice(mcsPeekInfo(ontology.maximalConsistentSubsets(isRepaired)));
             case SOME_MCS:
-                return Utils.randomChoice(ontology.someMaximalConsistentSubsets(isRepaired));
+                return Utils.randomChoice(mcsPeekInfo(ontology.someMaximalConsistentSubsets(isRepaired)));
             case ONE_MCS:
                 return ontology.maximalConsistentSubset(isRepaired);
             default:

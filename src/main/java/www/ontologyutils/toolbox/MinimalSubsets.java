@@ -2,7 +2,7 @@ package www.ontologyutils.toolbox;
 
 import java.util.*;
 import java.util.function.Predicate;
-import java.util.stream.Collectors;
+import java.util.stream.*;
 
 /**
  * Contains a collection of utilities for computing minimal subsets that satisfy
@@ -183,12 +183,9 @@ public final class MinimalSubsets {
      * @param isValid
      * @return A set containing minimal sets.
      */
-    public static <T> Set<Set<T>> getRandomizedMinimalSubsets(final Collection<T> set, final int tries,
+    public static <T> Stream<Set<T>> randomizedMinimalSubsets(final Collection<T> set, final int tries,
             final Predicate<Set<T>> isValid) {
-        final var results = new HashSet<Set<T>>();
-        for (int i = 0; i < tries; i++) {
-            results.addAll(getMinimalSubsets(Utils.randomOrder(set), isValid));
-        }
-        return results;
+        return IntStream.range(0, tries).mapToObj(i -> getMinimalSubsets(Utils.randomOrder(set), isValid))
+                .flatMap(sets -> sets.stream()).distinct();
     }
 }

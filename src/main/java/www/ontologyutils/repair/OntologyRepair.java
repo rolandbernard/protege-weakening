@@ -1,6 +1,11 @@
 package www.ontologyutils.repair;
 
+import java.util.Set;
+import java.util.function.Consumer;
 import java.util.function.Predicate;
+import java.util.stream.Stream;
+
+import org.semanticweb.owlapi.model.OWLAxiom;
 
 import www.ontologyutils.toolbox.*;
 
@@ -11,6 +16,7 @@ import www.ontologyutils.toolbox.*;
  */
 public abstract class OntologyRepair implements OntologyModification {
     protected final Predicate<Ontology> isRepaired;
+    protected Consumer<String> infoCallback;
 
     /**
      * @param isRepaired
@@ -33,14 +39,31 @@ public abstract class OntologyRepair implements OntologyModification {
         return isRepaired.test(ontology);
     }
 
+    public void setInfoCallback(final Consumer<String> infoCallback) {
+        this.infoCallback = infoCallback;
+    }
+
+    protected void infoMessage(final String message) {
+        if (infoCallback != null) {
+            infoCallback.accept(message);
+        }
+    }
+
+    protected Stream<Set<OWLAxiom>> mcsPeekInfo(final Stream<Set<OWLAxiom>> stream) {
+        return stream.peek(mcs -> infoMessage("Found maximal consistent set of size " + mcs.size() + "."));
+    }
+
     @Override
     public void apply(final Ontology ontology) throws IllegalArgumentException {
+        infoMessage("Checking precondition...");
         try (final var nonRefutable = ontology.clone()) {
             nonRefutable.removeAxioms(ontology.refutableAxioms());
             if (!isRepaired(nonRefutable)) {
                 throw new IllegalArgumentException("The ontology is not reparable.");
             }
         }
+        infoMessage("Starting the repair...");
         repair(ontology);
+        infoMessage("Finished repairing the ontology.");
     }
 }
