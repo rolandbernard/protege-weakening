@@ -10,13 +10,14 @@ public class ProgressWindow {
     private final EditorKit editorKit;
     private JProgressBar progressBar = new JProgressBar();
     private JTextArea messages = new JTextArea(10, 30);
+    private JButton cancelButton = new JButton("Cancel");
     private JDialog window;
 
     public ProgressWindow(final EditorKit editorKit) {
         this.editorKit = editorKit;
     }
 
-    private void initWindow() {
+    private void initWindow(final String name) {
         JPanel panel = new JPanel(new BorderLayout(5, 5));
         progressBar.setIndeterminate(true);
         panel.add(progressBar, BorderLayout.SOUTH);
@@ -30,11 +31,12 @@ public class ProgressWindow {
         JPanel holderPanel = new JPanel(new BorderLayout(5, 5));
         holderPanel.add(panel, BorderLayout.NORTH);
         holderPanel.add(scrollPane, BorderLayout.CENTER);
+        holderPanel.add(cancelButton, BorderLayout.SOUTH);
 
         holderPanel.setBorder(BorderFactory.createEmptyBorder(5, 5, 5, 5));
 
         Frame parent = (Frame) (SwingUtilities.getAncestorOfClass(Frame.class, editorKit.getWorkspace()));
-        window = new JDialog(parent, "Repairing the ontology", true);
+        window = new JDialog(parent, name, true);
         window.setDefaultCloseOperation(WindowConstants.DO_NOTHING_ON_CLOSE);
 
         window.getContentPane().setLayout(new BorderLayout());
@@ -57,12 +59,19 @@ public class ProgressWindow {
         return new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS").format(new java.util.Date());
     }
 
-    public void startProgress() {
+    public void startProgress(final String name, final Runnable onCancel) {
         SwingUtilities.invokeLater(() -> {
             if (window == null) {
-                initWindow();
+                initWindow(name);
                 window.setLocationRelativeTo(window.getOwner());
                 window.setVisible(true);
+                cancelButton.setEnabled(onCancel != null);
+                for (final var listener : cancelButton.getActionListeners()) {
+                    cancelButton.removeActionListener(listener);
+                }
+                if (onCancel != null) {
+                    cancelButton.addActionListener(e -> onCancel.run());
+                }
             }
         });
     }

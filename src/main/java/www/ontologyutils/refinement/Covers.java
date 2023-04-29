@@ -90,6 +90,9 @@ public class Covers implements AutoCloseable {
      *         {@code subclass} is a subclass of {@code superclass}.
      */
     private boolean isSubclass(final OWLClassExpression subclass, final OWLClassExpression superclass) {
+        if (Thread.interrupted()) {
+            throw new CanceledException();
+        }
         final var testAxiom = df.getOWLSubClassOfAxiom(subclass, superclass);
         return reasoner.isEntailed(testAxiom);
     }
@@ -168,6 +171,9 @@ public class Covers implements AutoCloseable {
      *         {@code subRole} is subsumed by {@code superRole}.
      */
     private boolean isSubRole(final OWLObjectPropertyExpression subRole, final OWLObjectPropertyExpression superRole) {
+        if (Thread.interrupted()) {
+            throw new CanceledException();
+        }
         final var testAxiom = df.getOWLSubObjectPropertyOfAxiom(subRole, superRole);
         return reasoner.isEntailed(testAxiom);
     }

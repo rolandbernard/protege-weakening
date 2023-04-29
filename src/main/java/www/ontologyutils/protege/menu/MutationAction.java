@@ -31,7 +31,7 @@ public abstract class MutationAction extends ProtegeOWLAction {
         getOWLModelManager().removeListener(listener);
     }
 
-    protected abstract void performMutation(final Ontology ontology);
+    protected abstract boolean performMutation(final Ontology ontology);
 
     @Override
     public void actionPerformed(final ActionEvent event) {
@@ -40,10 +40,11 @@ public abstract class MutationAction extends ProtegeOWLAction {
                     .getCurrentReasonerFactory().getReasonerFactory();
             final var owlOntology = getOWLModelManager().getActiveOntology();
             final var ontology = Ontology.withAxiomsFrom(owlOntology, reasonerFactory);
-            performMutation(ontology);
-            SwingUtilities.invokeLater(() -> {
-                ontology.applyChangesTo(owlOntology);
-            });
+            if (performMutation(ontology)) {
+                SwingUtilities.invokeLater(() -> {
+                    ontology.applyChangesTo(owlOntology);
+                });
+            }
         });
         thread.start();
     }

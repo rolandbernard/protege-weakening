@@ -87,7 +87,9 @@ public class Ontology implements AutoCloseable {
          * @return The value returned by {@code action}.
          */
         public <T> T withReasonerDo(final Ontology ontology, final Function<OWLReasoner, T> action) {
-            if (reasoner == null) {
+            if (Thread.interrupted()) {
+                throw new CanceledException();
+            } else if (reasoner == null) {
                 reasoner = getOwlReasoner(ontology);
             } else {
                 final var owlOntology = reasoner.getRootOntology();
@@ -585,9 +587,18 @@ public class Ontology implements AutoCloseable {
      * @return The new ontology.
      */
     public Ontology cloneWith(final Set<? extends OWLAxiom> axioms) {
-        return new Ontology(axioms.stream().filter(axiom -> axioms.contains(axiom)).collect(Collectors.toList()),
+        return new Ontology(staticAxioms.stream().filter(axiom -> axioms.contains(axiom)).collect(Collectors.toList()),
                 refutableAxioms.stream().filter(axiom -> axioms.contains(axiom)).collect(Collectors.toList()),
                 reasonerCache);
+    }
+
+    /**
+     * Clone this ontology, but give it a separate reasoner.
+     *
+     * @return The new ontology.
+     */
+    public Ontology cloneWithSeparateCache() {
+        return new Ontology(staticAxioms, refutableAxioms, new CachedReasoner(reasonerCache.reasonerFactory));
     }
 
     @Override

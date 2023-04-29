@@ -9,9 +9,10 @@ import www.ontologyutils.toolbox.Ontology;
 public abstract class AutoRepair extends MutationAction {
     protected abstract OntologyRepair getOntologyRepair();
 
-    protected void performMutation(final Ontology ontology) {
+    protected boolean performMutation(final Ontology ontology) {
         final var progressWindow = new ProgressWindow(getEditorKit());
-        progressWindow.startProgress();
+        final var currentThread = Thread.currentThread();
+        progressWindow.startProgress("Automatic Repair", () -> currentThread.interrupt());
         try {
             final var repair = getOntologyRepair();
             repair.setInfoCallback(progressWindow::addMessage);
@@ -25,11 +26,13 @@ public abstract class AutoRepair extends MutationAction {
                     JOptionPane.showMessageDialog(getOWLWorkspace(), "Ontology has been repaired");
                 });
             }
+            return true;
         } catch (final Exception e) {
             SwingUtilities.invokeLater(() -> {
                 JOptionPane.showMessageDialog(getOWLWorkspace(), e.getMessage(), "Repair failed",
                         JOptionPane.ERROR_MESSAGE);
             });
+            return false;
         } finally {
             progressWindow.stopProgress();
         }
