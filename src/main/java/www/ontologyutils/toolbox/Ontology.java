@@ -585,8 +585,9 @@ public class Ontology implements AutoCloseable {
      * @return The new ontology.
      */
     public Ontology cloneWith(final Set<? extends OWLAxiom> axioms) {
-        return new Ontology(axioms.stream().filter(axiom -> axioms.contains(axiom)).toList(),
-                refutableAxioms.stream().filter(axiom -> axioms.contains(axiom)).toList(), reasonerCache);
+        return new Ontology(axioms.stream().filter(axiom -> axioms.contains(axiom)).collect(Collectors.toList()),
+                refutableAxioms.stream().filter(axiom -> axioms.contains(axiom)).collect(Collectors.toList()),
+                reasonerCache);
     }
 
     @Override

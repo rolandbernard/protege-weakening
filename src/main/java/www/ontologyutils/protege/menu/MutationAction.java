@@ -1,7 +1,11 @@
 package www.ontologyutils.protege.menu;
 
+import java.awt.event.ActionEvent;
+
 import org.protege.editor.owl.model.event.*;
 import org.protege.editor.owl.ui.action.ProtegeOWLAction;
+
+import www.ontologyutils.toolbox.Ontology;
 
 public abstract class MutationAction extends ProtegeOWLAction {
     private OWLModelManagerListener listener = event -> {
@@ -23,5 +27,17 @@ public abstract class MutationAction extends ProtegeOWLAction {
     @Override
     public void dispose() {
         getOWLModelManager().removeListener(listener);
+    }
+
+    protected abstract void performMutation(final Ontology ontology);
+
+    @Override
+    public void actionPerformed(final ActionEvent event) {
+        final var reasonerFactory = getOWLModelManager().getOWLReasonerManager()
+                .getCurrentReasonerFactory().getReasonerFactory();
+        final var owlOntology = getOWLModelManager().getActiveOntology();
+        final var ontology = Ontology.withAxiomsFrom(owlOntology, reasonerFactory);
+        performMutation(ontology);
+        ontology.applyChangesTo(owlOntology);
     }
 }
