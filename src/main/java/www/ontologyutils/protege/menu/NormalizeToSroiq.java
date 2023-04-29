@@ -1,6 +1,6 @@
 package www.ontologyutils.protege.menu;
 
-import javax.swing.JOptionPane;
+import javax.swing.*;
 
 import www.ontologyutils.normalization.SroiqNormalization;
 import www.ontologyutils.toolbox.Ontology;
@@ -10,7 +10,16 @@ public class NormalizeToSroiq extends MutationAction {
 
     @Override
     protected void performMutation(Ontology ontology) {
-        normalization.apply(ontology);
-        JOptionPane.showMessageDialog(getOWLWorkspace(), "Ontology has been normalized");
+        try {
+            normalization.apply(ontology);
+            SwingUtilities.invokeLater(() -> {
+                JOptionPane.showMessageDialog(getOWLWorkspace(), "Ontology has been normalized");
+            });
+        } catch (final Exception e) {
+            SwingUtilities.invokeLater(() -> {
+                JOptionPane.showMessageDialog(getOWLWorkspace(), e.getMessage(), "Normalization failed",
+                        JOptionPane.ERROR_MESSAGE);
+            });
+        }
     }
 }

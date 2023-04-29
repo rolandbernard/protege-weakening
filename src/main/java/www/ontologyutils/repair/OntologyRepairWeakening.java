@@ -139,12 +139,18 @@ public class OntologyRepairWeakening extends OntologyRepair {
     @Override
     public void repair(final Ontology ontology) {
         final var refAxioms = getRefAxioms(ontology);
+        infoMessage("Selected a reference ontology with " + refAxioms.size() + " axioms.");
         try (final var refOntology = ontology.cloneWith(refAxioms)) {
             try (final var axiomWeakener = new AxiomWeakener(refOntology, ontology)) {
                 while (!isRepaired(ontology)) {
-                    final var badAxioms = findBadAxioms(ontology);
+                    final var badAxioms = findBadAxioms(ontology).collect(Collectors.toList());
+                    infoMessage("Found " + badAxioms.size() + " possible bad axioms.");
                     final var badAxiom = Utils.randomChoice(badAxioms);
-                    final var weakerAxiom = Utils.randomChoice(axiomWeakener.weakerAxioms(badAxiom));
+                    infoMessage("Selected the bad axiom " + Utils.prettyPrintAxiom(badAxiom) + ".");
+                    final var weakerAxioms = axiomWeakener.weakerAxioms(badAxiom).collect(Collectors.toList());
+                    infoMessage("Found  " + weakerAxioms.size() + " weaker axioms.");
+                    final var weakerAxiom = Utils.randomChoice(weakerAxioms);
+                    infoMessage("Selected the weaker axiom " + Utils.prettyPrintAxiom(weakerAxiom) + ".");
                     ontology.replaceAxiom(badAxiom, weakerAxiom);
                 }
             }

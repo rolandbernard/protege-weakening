@@ -2,6 +2,8 @@ package www.ontologyutils.protege.menu;
 
 import java.awt.event.ActionEvent;
 
+import javax.swing.SwingUtilities;
+
 import org.protege.editor.owl.model.event.*;
 import org.protege.editor.owl.ui.action.ProtegeOWLAction;
 
@@ -33,11 +35,16 @@ public abstract class MutationAction extends ProtegeOWLAction {
 
     @Override
     public void actionPerformed(final ActionEvent event) {
-        final var reasonerFactory = getOWLModelManager().getOWLReasonerManager()
-                .getCurrentReasonerFactory().getReasonerFactory();
-        final var owlOntology = getOWLModelManager().getActiveOntology();
-        final var ontology = Ontology.withAxiomsFrom(owlOntology, reasonerFactory);
-        performMutation(ontology);
-        ontology.applyChangesTo(owlOntology);
+        final var thread = new Thread(() -> {
+            final var reasonerFactory = getOWLModelManager().getOWLReasonerManager()
+                    .getCurrentReasonerFactory().getReasonerFactory();
+            final var owlOntology = getOWLModelManager().getActiveOntology();
+            final var ontology = Ontology.withAxiomsFrom(owlOntology, reasonerFactory);
+            performMutation(ontology);
+            SwingUtilities.invokeLater(() -> {
+                ontology.applyChangesTo(owlOntology);
+            });
+        });
+        thread.start();
     }
 }

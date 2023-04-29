@@ -76,7 +76,7 @@ public class OntologyRepairRandomMcs extends OntologyRepair {
 
     @Override
     public void repair(final Ontology ontology) {
-        final var toRemove = Utils.randomChoice(computeMcs(ontology));
+        final var toRemove = Utils.randomChoice(mcsPeekInfo(computeMcs(ontology)));
         ontology.removeAxioms(toRemove);
     }
 }
