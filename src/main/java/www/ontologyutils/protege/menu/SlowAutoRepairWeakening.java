@@ -6,7 +6,7 @@ import www.ontologyutils.toolbox.Ontology;
 
 public class SlowAutoRepairWeakening extends AutoRepair {
     private final OntologyRepair repair = new OntologyRepairWeakening(
-            Ontology::isConsistent, RefOntologyStrategy.SOME_MCS, BadAxiomStrategy.IN_SOME_MUS);
+            Ontology::isConsistent, RefOntologyStrategy.RANDOM_MCS, BadAxiomStrategy.IN_LEAST_MCS);
 
     @Override
     protected OntologyRepair getOntologyRepair() {

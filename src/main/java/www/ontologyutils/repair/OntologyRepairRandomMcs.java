@@ -15,7 +15,7 @@ import www.ontologyutils.toolbox.*;
  */
 public class OntologyRepairRandomMcs extends OntologyRepair {
     public static enum McsComputationStrategy {
-        All_MCS, SOME_MCS, ONE_MCS,
+        ALL_MCS, SOME_MCS, ONE_MCS,
     }
 
     private final McsComputationStrategy mcsComputation;
@@ -63,7 +63,7 @@ public class OntologyRepairRandomMcs extends OntologyRepair {
      */
     public Stream<Set<OWLAxiom>> computeMcs(final Ontology ontology) {
         switch (mcsComputation) {
-            case All_MCS:
+            case ALL_MCS:
                 return ontology.minimalCorrectionSubsets(isRepaired);
             case SOME_MCS:
                 return ontology.someMinimalCorrectionSubsets(isRepaired);

@@ -6,7 +6,7 @@ import www.ontologyutils.toolbox.Ontology;
 
 public class SlowAutoRepairMcs extends AutoRepair {
     private final OntologyRepair repair = new OntologyRepairRandomMcs(
-            Ontology::isConsistent, McsComputationStrategy.All_MCS);
+            Ontology::isConsistent, McsComputationStrategy.ALL_MCS);
 
     @Override
     protected OntologyRepair getOntologyRepair() {
