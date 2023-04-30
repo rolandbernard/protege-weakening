@@ -4,9 +4,9 @@ import www.ontologyutils.repair.*;
 import www.ontologyutils.repair.OntologyRepairWeakening.*;
 import www.ontologyutils.toolbox.Ontology;
 
-public class NormalAutoRepairWeakening extends AutoRepair {
+public class FastConsistencyRepairWeakening extends AutoRepair {
     private final OntologyRepair repair = new OntologyRepairWeakening(
-            Ontology::isConsistent, RefOntologyStrategy.SOME_MCS, BadAxiomStrategy.IN_SOME_MUS);
+            Ontology::isConsistent, RefOntologyStrategy.ONE_MCS, BadAxiomStrategy.IN_ONE_MUS);
 
     @Override
     protected OntologyRepair getOntologyRepair() {

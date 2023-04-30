@@ -38,6 +38,14 @@ public class OntologyRepairRandomMcs extends OntologyRepair {
     }
 
     /**
+     * @return An instance of {@code OntologyRepairRandomMcs} that tries to make the
+     *         ontology coherent.
+     */
+    public static OntologyRepair forCoherence() {
+        return new OntologyRepairRandomMcs(Ontology::isCoherent);
+    }
+
+    /**
      * @return An instance of {@code OntologyRepairRandomMcs} that tries to remove
      *         all {@code axioms} from being entailed by the ontology.
      */

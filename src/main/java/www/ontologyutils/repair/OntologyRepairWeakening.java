@@ -42,7 +42,7 @@ public class OntologyRepairWeakening extends OntologyRepair {
     }
 
     /**
-     * @return An instance of {@code OntologyRepairRandomMcs} that tries to make the
+     * @return An instance of {@code OntologyRepairWeakening} that tries to make the
      *         ontology consistent.
      */
     public static OntologyRepair forConsistency() {
@@ -50,7 +50,15 @@ public class OntologyRepairWeakening extends OntologyRepair {
     }
 
     /**
-     * @return An instance of {@code OntologyRepairRandomMcs} that tries to remove
+     * @return An instance of {@code OntologyRepairWeakening} that tries to make the
+     *         ontology coherent.
+     */
+    public static OntologyRepair forCoherence() {
+        return new OntologyRepairWeakening(Ontology::isCoherent);
+    }
+
+    /**
+     * @return An instance of {@code OntologyRepairWeakening} that tries to remove
      *         all {@code axioms} from being entailed by the ontology.
      */
     public static OntologyRepair forRemovingEntailments(final Collection<? extends OWLAxiom> axioms) {
@@ -58,7 +66,7 @@ public class OntologyRepairWeakening extends OntologyRepair {
     }
 
     /**
-     * @return An instance of {@code OntologyRepairRandomMcs} that tries to make
+     * @return An instance of {@code OntologyRepairWeakening} that tries to make
      *         {@code concept} satisfiable.
      */
     public static OntologyRepair forConceptSatisfiability(final OWLClassExpression concept) {

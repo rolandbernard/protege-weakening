@@ -4,9 +4,9 @@ import www.ontologyutils.repair.*;
 import www.ontologyutils.repair.OntologyRepairRandomMcs.McsComputationStrategy;
 import www.ontologyutils.toolbox.Ontology;
 
-public class NormalAutoRepairMcs extends AutoRepair {
+public class FastCoherenceRepairMcs extends AutoRepair {
     private final OntologyRepair repair = new OntologyRepairRandomMcs(
-            Ontology::isConsistent, McsComputationStrategy.SOME_MCS);
+            Ontology::isCoherent, McsComputationStrategy.ONE_MCS);
 
     @Override
     protected OntologyRepair getOntologyRepair() {
