@@ -19,6 +19,9 @@ import java.util.stream.*;
  * Shchekotykhin, Kostyantyn, Dietmar Jannach, and Thomas Schmitz. "MergeXplain:
  * Fast computation of multiple conflicts for diagnosis." Twenty-Fourth
  * International Joint Conference on Artificial Intelligence. 2015.
+ * and
+ * Kalyanpur, A., Parsia, B., Horridge, M., & Sirin, E. (2007). Finding all
+ * justifications of OWL DL entailments. ISWC/ASWC, 4825, 267-280.
  */
 public final class MinimalSubsets {
     private static class MinimalSubsetsResult<T> {
@@ -40,6 +43,10 @@ public final class MinimalSubsets {
     @SafeVarargs
     private static <T> Set<T> getUnion(final Collection<T>... parts) {
         return Arrays.stream(parts).flatMap(c -> c.stream()).collect(Collectors.toSet());
+    }
+
+    private static <T> Set<T> getDifference(final Collection<T> base, final Collection<T> remove) {
+        return base.stream().filter(c -> !remove.contains(c)).collect(Collectors.toSet());
     }
 
     private static <T> boolean isValidWithoutFirst(final Collection<T> contained, final List<T> search, int n,
@@ -67,10 +74,14 @@ public final class MinimalSubsets {
      * @param contained
      * @param set
      * @param isValid
-     * @return A minimal subset that satisfies {@code isValid}.
+     * @return A minimal subset that satisfies {@code isValid} or null if no such
+     *         set exists.
      */
     public static <T> Set<T> getMinimalSubset(final Collection<T> contained, final Collection<T> set,
             final Predicate<Set<T>> isValid) {
+        if (!isValid.test(getUnion(contained, set))) {
+            return null;
+        }
         final var all = List.copyOf(set);
         final var fixed = new HashSet<T>(contained);
         final var subset = new HashSet<T>();
@@ -97,7 +108,8 @@ public final class MinimalSubsets {
      *
      * @param set
      * @param isValid
-     * @return A minimal subset that satisfies {@code isValid}.
+     * @return A minimal subset that satisfies {@code isValid} or null if no such
+     *         set exists.
      */
     public static <T> Set<T> getMinimalSubset(final Collection<T> set, final Predicate<Set<T>> isValid) {
         return getMinimalSubset(Set.of(), set, isValid);
@@ -155,8 +167,6 @@ public final class MinimalSubsets {
             final Predicate<Set<T>> isValid) {
         if (isValid.test(Set.copyOf(contained))) {
             return Set.of(Set.of());
-        } else if (!isValid.test(getUnion(contained, set))) {
-            return Set.of();
         } else {
             return getMinimalSubsetsHelper(Set.copyOf(contained), List.copyOf(set), isValid).results;
         }
@@ -187,5 +197,201 @@ public final class MinimalSubsets {
             final Predicate<Set<T>> isValid) {
         return IntStream.range(0, tries).mapToObj(i -> getMinimalSubsets(Utils.randomOrder(set), isValid))
                 .flatMap(sets -> sets.stream()).distinct();
+    }
+
+    private static <T extends Comparable<? super T>> void addToSetOfSets(final SetOfSets<T> sets, final Set<T> set) {
+        // We keep the hitting sets and prefix paths minimal to improve search
+        // performance.
+        for (final var superset : (Iterable<Set<T>>) sets.supersets(set)::iterator) {
+            sets.remove(superset);
+        }
+        sets.add(set);
+    }
+
+    private static <T extends Comparable<? super T>> void getAllMinimalSubsetsHelper(final Set<T> contained,
+            final Collection<T> set, final Predicate<Set<T>> isValid, final Set<T> path, final SetOfSets<T> minimalSets,
+            final Set<Set<T>> hittingSets, final SetOfSets<T> prefixPaths, final Map<T, Integer> frequency) {
+        if (prefixPaths.containsSubset(path)) {
+            return;
+        }
+        Set<T> minimalSet = minimalSets.getDisjoint(path);
+        if (minimalSet == null) {
+            minimalSet = getMinimalSubset(contained, List.copyOf(set), isValid);
+            if (minimalSet == null) {
+                final var minimalHitting = getMinimalSubset(Set.of(), List.copyOf(path),
+                        s -> !isValid.test(getUnion(contained, set, getDifference(path, s))));
+                addToSetOfSets(prefixPaths, minimalHitting);
+                if (hittingSets != null) {
+                    hittingSets.add(minimalHitting);
+                }
+                return;
+            }
+            minimalSets.add(minimalSet);
+            for (final var elem : minimalSet) {
+                frequency.put(elem, frequency.getOrDefault(elem, 0) + 1);
+            }
+        }
+        final var sorted = minimalSet.stream()
+                .sorted((a, b) -> frequency.get(b).compareTo(frequency.get(a)));
+        for (final var elem : (Iterable<T>) sorted::iterator) {
+            set.remove(elem);
+            path.add(elem);
+            getAllMinimalSubsetsHelper(contained, set, isValid, path, minimalSets, hittingSets, prefixPaths, frequency);
+            set.add(elem);
+            path.remove(elem);
+        }
+        addToSetOfSets(prefixPaths, path);
+    }
+
+    /**
+     * @param <T>
+     * @param contained
+     * @param set
+     * @param isValid
+     * @return All minimal subsets that together with {@code contained} satisfy the
+     *         monotone predicate {@code isValid}.
+     */
+    public static <T extends Comparable<? super T>> Set<Set<T>> getAllMinimalSubsets(final Collection<T> contained,
+            final Collection<T> set, final Predicate<Set<T>> isValid) {
+        if (isValid.test(Set.copyOf(contained))) {
+            return Set.of(Set.of());
+        } else {
+            final var minimalSets = new SetOfSets<T>();
+            final var prefixPaths = new SetOfSets<T>();
+            final var frequency = new HashMap<T, Integer>();
+            getAllMinimalSubsetsHelper(Set.copyOf(contained), new HashSet<>(set), isValid, new HashSet<>(), minimalSets,
+                    null, prefixPaths, frequency);
+            return minimalSets;
+        }
+    }
+
+    /**
+     * @param <T>
+     * @param set
+     * @param isValid
+     * @return All minimal subsets that satisfy the monotone predicate
+     *         {@code isValid}.
+     */
+    public static <T extends Comparable<? super T>> Set<Set<T>> getAllMinimalSubsets(final Collection<T> set,
+            final Predicate<Set<T>> isValid) {
+        return getAllMinimalSubsets(Set.of(), set, isValid);
+    }
+
+    /**
+     * @param <T>
+     * @param contained
+     * @param set
+     * @param isValid
+     * @return All minimal hitting sets for the justifications of {@code isValid}.
+     */
+    public static <T extends Comparable<? super T>> Set<Set<T>> getAllMinimalHittingSets(final Collection<T> contained,
+            final Collection<T> set, final Predicate<Set<T>> isValid) {
+        if (isValid.test(Set.copyOf(contained))) {
+            return Set.of(Set.of());
+        } else {
+            final var minimalSets = new SetOfSets<T>();
+            final var prefixPaths = new SetOfSets<T>();
+            final var hittingSets = new HashSet<Set<T>>();
+            final var frequency = new HashMap<T, Integer>();
+            getAllMinimalSubsetsHelper(Set.copyOf(contained), new HashSet<>(set), isValid, new HashSet<>(), minimalSets,
+                    hittingSets, prefixPaths, frequency);
+            return hittingSets;
+        }
+    }
+
+    /**
+     * @param <T>
+     * @param set
+     * @param isValid
+     * @return All minimal hitting sets for the justifications of {@code isValid}.
+     */
+    public static <T extends Comparable<? super T>> Set<Set<T>> getAllMinimalHittingSets(final Collection<T> set,
+            final Predicate<Set<T>> isValid) {
+        return getAllMinimalHittingSets(Set.of(), set, isValid);
+    }
+
+    private static <T extends Comparable<? super T>> Set<T> allMinimalSubsetsHelper(final Collection<T> contained,
+            final Collection<T> set, final Predicate<Set<T>> isValid, final ArrayDeque<Set<T>> queue,
+            final SetOfSets<T> minimalSets, final SetOfSets<T> hittingSets, final Map<T, Integer> frequency) {
+        Set<T> result = null;
+        while (result == null && !queue.isEmpty()) {
+            final var path = queue.pop();
+            if (hittingSets.containsSubset(path)) {
+                continue;
+            }
+            Set<T> minimalSet = minimalSets.getDisjoint(path);
+            if (minimalSet == null) {
+                minimalSet = getMinimalSubset(contained, getDifference(set, path), isValid);
+                if (minimalSet == null) {
+                    final var minimalHitting = getMinimalSubset(Set.of(), path,
+                            s -> !isValid.test(getUnion(contained, getDifference(set, s))));
+                    hittingSets.add(minimalHitting);
+                    continue;
+                }
+                minimalSets.add(minimalSet);
+                for (final var elem : minimalSet) {
+                    frequency.put(elem, frequency.getOrDefault(elem, 0) + 1);
+                }
+                result = minimalSet;
+            }
+            final var sorted = minimalSet.stream()
+                    .sorted((a, b) -> frequency.get(b).compareTo(frequency.get(a)));
+            for (final var elem : (Iterable<T>) sorted::iterator) {
+                queue.push(getUnion(path, Set.of(elem)));
+            }
+        }
+        return result;
+    }
+
+    /**
+     * @param <T>
+     * @param contained
+     * @param set
+     * @param isValid
+     * @return All minimal subsets that together with {@code contained} satisfy the
+     *         monotone predicate {@code isValid}.
+     */
+    public static <T extends Comparable<? super T>> Stream<Set<T>> allMinimalSubsets(final Collection<T> contained,
+            final Collection<T> set, final Predicate<Set<T>> isValid) {
+        if (isValid.test(Set.copyOf(contained))) {
+            return Stream.of(Set.of());
+        } else {
+            final var minimalSets = new SetOfSets<T>();
+            final var hittingSets = new SetOfSets<T>();
+            final var frequency = new HashMap<T, Integer>();
+            final var queue = new ArrayDeque<Set<T>>();
+            queue.add(Set.of());
+            return StreamSupport.stream(Spliterators.spliteratorUnknownSize(new Iterator<Set<T>>() {
+                private Set<T> result;
+
+                public boolean hasNext() {
+                    if (result == null) {
+                        result = allMinimalSubsetsHelper(contained, set, isValid, queue, minimalSets, hittingSets,
+                                frequency);
+                    }
+                    return result != null;
+                }
+
+                @Override
+                public Set<T> next() {
+                    hasNext();
+                    final var next = result;
+                    result = null;
+                    return next;
+                }
+            }, Spliterator.NONNULL), false);
+        }
+    }
+
+    /**
+     * @param <T>
+     * @param set
+     * @param isValid
+     * @return All minimal subsets that satisfy the monotone predicate
+     *         {@code isValid}.
+     */
+    public static <T extends Comparable<? super T>> Stream<Set<T>> allMinimalSubsets(final Collection<T> set,
+            final Predicate<Set<T>> isValid) {
+        return allMinimalSubsets(Set.of(), set, isValid);
     }
 }

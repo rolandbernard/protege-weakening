@@ -58,6 +58,14 @@ public class SetOfSets<K extends Comparable<? super K>> extends AbstractSet<Set<
 
     /**
      * @param key
+     * @return True iff the any element in this set is disjoint with {@code key}.
+     */
+    public boolean containsDisjoint(final Set<K> key) {
+        return map.containsDisjoint(key);
+    }
+
+    /**
+     * @param key
      * @return True iff the any element in this set is a superset of {@code key}.
      */
     public boolean containsSuperset(final Set<K> key) {
@@ -79,5 +87,47 @@ public class SetOfSets<K extends Comparable<? super K>> extends AbstractSet<Set<
      */
     public Stream<Set<K>> supersets(final Set<K> key) {
         return map.entrySetForSupersets(key).stream().map(entry -> entry.getKey());
+    }
+
+    /**
+     * @param key
+     * @return Some entry which is a subset of {@code key} or null if no such entry
+     *         exists.
+     */
+    public Set<K> getSubset(final Set<K> key) {
+        final var result = map.getSubset(key);
+        if (result != null) {
+            return result.getKey();
+        } else {
+            return null;
+        }
+    }
+
+    /**
+     * @param key
+     * @return Some entry which is disjoint with {@code key} or null if no such
+     *         entry exists.
+     */
+    public Set<K> getDisjoint(final Set<K> key) {
+        final var result = map.getDisjoint(key);
+        if (result != null) {
+            return result.getKey();
+        } else {
+            return null;
+        }
+    }
+
+    /**
+     * @param key
+     * @return Some entry which is a superset of {@code key} or null if no such
+     *         entry exists.
+     */
+    public Set<K> getSuperset(final Set<K> key) {
+        final var result = map.getSuperset(key);
+        if (result != null) {
+            return result.getKey();
+        } else {
+            return null;
+        }
     }
 }

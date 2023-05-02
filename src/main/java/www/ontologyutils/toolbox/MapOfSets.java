@@ -181,41 +181,20 @@ public class MapOfSets<K extends Comparable<? super K>, V> extends AbstractMap<S
         return result;
     }
 
-    private boolean containsSubsetHelper(final TrieNode<K, V> node, final Set<K> key) {
-        if (node.data != null) {
-            return true;
-        } else {
-            for (final var entry : node.children()) {
-                if (key.contains(entry.getKey()) && containsSubsetHelper(entry.getValue(), key)) {
-                    return true;
-                }
-            }
-            return false;
-        }
-    }
-
     /**
      * @param key
      * @return True iff any key in the map is a subset of {@code key}:
      */
     public boolean containsSubset(final Set<K> key) {
-        return containsSubsetHelper(root, key);
+        return getSubset(key) != null;
     }
 
-    private boolean containsSupersetHelper(final TrieNode<K, V> node, final List<K> key, final int depth) {
-        if (depth == key.size() && node.data != null) {
-            return true;
-        } else {
-            for (final var entry : node.children()) {
-                final int cmp = depth < key.size() ? entry.getKey().compareTo(key.get(depth)) : -1;
-                if (cmp <= 0) {
-                    if (containsSupersetHelper(entry.getValue(), key, cmp == 0 ? depth + 1 : depth)) {
-                        return true;
-                    }
-                }
-            }
-            return false;
-        }
+    /**
+     * @param key
+     * @return True iff any key in the map is disjoint with {@code key}:
+     */
+    public boolean containsDisjoint(final Set<K> key) {
+        return getDisjoint(key) != null;
     }
 
     /**
@@ -223,8 +202,7 @@ public class MapOfSets<K extends Comparable<? super K>, V> extends AbstractMap<S
      * @return True iff any key in the map is a superset of {@code key}:
      */
     public boolean containsSuperset(final Set<K> key) {
-        final var sorted = key.stream().sorted().collect(Collectors.toList());
-        return containsSupersetHelper(root, sorted, 0);
+        return getSuperset(key) != null;
     }
 
     private void entrySetForSubsetHelper(final TrieNode<K, V> node, final Set<K> key, final List<K> path,
@@ -275,5 +253,86 @@ public class MapOfSets<K extends Comparable<? super K>, V> extends AbstractMap<S
         final var result = new HashSet<Entry<Set<K>, V>>();
         entrySetForSupersetHelper(root, sorted, 0, new ArrayList<>(), result);
         return result;
+    }
+
+    private Entry<Set<K>, V> getSubsetHelper(final TrieNode<K, V> node, final Set<K> key, final List<K> path) {
+        if (node.data != null) {
+            return new SimpleEntry<>(Set.copyOf(path), node.data);
+        }
+        for (final var entry : node.children()) {
+            if (key.contains(entry.getKey())) {
+                path.add(entry.getKey());
+                final var result = getSubsetHelper(entry.getValue(), key, path);
+                if (result != null) {
+                    return result;
+                }
+                path.remove(path.size() - 1);
+            }
+        }
+        return null;
+    }
+
+    /**
+     * @param key
+     * @return Some entry for which the key is a subset of {@code key} or null if no
+     *         such entry exists.
+     */
+    public Entry<Set<K>, V> getSubset(final Set<K> key) {
+        return getSubsetHelper(root, key, new ArrayList<>());
+    }
+
+    private Entry<Set<K>, V> getDisjointHelper(final TrieNode<K, V> node, final Set<K> key, final List<K> path) {
+        if (node.data != null) {
+            return new SimpleEntry<>(Set.copyOf(path), node.data);
+        }
+        for (final var entry : node.children()) {
+            if (!key.contains(entry.getKey())) {
+                path.add(entry.getKey());
+                final var result = getDisjointHelper(entry.getValue(), key, path);
+                if (result != null) {
+                    return result;
+                }
+                path.remove(path.size() - 1);
+            }
+        }
+        return null;
+    }
+
+    /**
+     * @param key
+     * @return Some entry for which the key is disjoint with {@code key} or null if
+     *         no such entry exists.
+     */
+    public Entry<Set<K>, V> getDisjoint(final Set<K> key) {
+        return getDisjointHelper(root, key, new ArrayList<>());
+    }
+
+    private Entry<Set<K>, V> getSupersetHelper(final TrieNode<K, V> node, final List<K> key, final int depth,
+            final List<K> path) {
+        if (depth == key.size() && node.data != null) {
+            return new SimpleEntry<>(Set.copyOf(path), node.data);
+        }
+        for (final var entry : node.children()) {
+            final int cmp = depth < key.size() ? entry.getKey().compareTo(key.get(depth)) : -1;
+            if (cmp <= 0) {
+                path.add(entry.getKey());
+                final var result = getSupersetHelper(entry.getValue(), key, cmp == 0 ? depth + 1 : depth, path);
+                if (result != null) {
+                    return result;
+                }
+                path.remove(path.size() - 1);
+            }
+        }
+        return null;
+    }
+
+    /**
+     * @param key
+     * @return Some entry for which the key is a superset of {@code key} or null if
+     *         no such entry exists.
+     */
+    public Entry<Set<K>, V> getSuperset(final Set<K> key) {
+        final var sorted = key.stream().sorted().collect(Collectors.toList());
+        return getSupersetHelper(root, sorted, 0, new ArrayList<>());
     }
 }

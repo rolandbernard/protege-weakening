@@ -81,23 +81,23 @@ public class OntologyRepairWeakening extends OntologyRepair {
     public Set<OWLAxiom> getRefAxioms(final Ontology ontology) {
         switch (refOntologySource) {
             case INTERSECTION_OF_MCS: {
-                return mcsPeekInfo(ontology.maximalConsistentSubsets(isRepaired)).reduce((a, b) -> {
+                return mcsPeekInfo(false, ontology.maximalConsistentSubsets(isRepaired)).reduce((a, b) -> {
                     a.removeIf(axiom -> !b.contains(axiom));
                     return a;
                 }).get();
             }
             case INTERSECTION_OF_SOME_MCS: {
-                return mcsPeekInfo(ontology.someMaximalConsistentSubsets(isRepaired)).reduce((a, b) -> {
+                return mcsPeekInfo(false, ontology.someMaximalConsistentSubsets(isRepaired)).reduce((a, b) -> {
                     a.removeIf(axiom -> !b.contains(axiom));
                     return a;
                 }).get();
             }
             case LARGEST_MCS:
-                return Utils.randomChoice(mcsPeekInfo(ontology.largestMaximalConsistentSubsets(isRepaired)));
+                return Utils.randomChoice(mcsPeekInfo(false, ontology.largestMaximalConsistentSubsets(isRepaired)));
             case RANDOM_MCS:
-                return Utils.randomChoice(mcsPeekInfo(ontology.maximalConsistentSubsets(isRepaired)));
+                return Utils.randomChoice(mcsPeekInfo(false, ontology.maximalConsistentSubsets(isRepaired)));
             case SOME_MCS:
-                return Utils.randomChoice(mcsPeekInfo(ontology.someMaximalConsistentSubsets(isRepaired)));
+                return Utils.randomChoice(mcsPeekInfo(false, ontology.someMaximalConsistentSubsets(isRepaired)));
             case ONE_MCS:
                 return ontology.maximalConsistentSubset(isRepaired);
             default:

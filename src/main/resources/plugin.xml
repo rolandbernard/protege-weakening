@@ -124,7 +124,7 @@
 
 	<extension id="weakeningrepaircoherence" point="org.protege.editor.core.application.EditorKitMenuAction">
 		<name value="Make Coherent" />
-		<path value="${project.artifactId}.weakeningrepair/SlotA-A" />
+		<path value="${project.artifactId}.weakeningrepair/SlotA-B" />
 		<editorKitId value="any" />
 	</extension>
 

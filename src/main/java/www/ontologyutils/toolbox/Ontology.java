@@ -355,8 +355,14 @@ public class Ontology implements AutoCloseable {
     }
 
     public void replaceAxiom(final OWLAxiom remove, final Stream<? extends OWLAxiom> replacement) {
+        final var annotated = replacement.map(a -> getOriginAnnotatedAxiom(a, remove));
+        final boolean isStatic = staticAxioms.contains(remove);
         removeAxioms(remove);
-        addAxioms(replacement.map(a -> getOriginAnnotatedAxiom(a, remove)));
+        if (isStatic) {
+            addStaticAxioms(annotated);
+        } else {
+            addAxioms(annotated);
+        }
     }
 
     public void replaceAxiom(final OWLAxiom remove, final Collection<? extends OWLAxiom> replacement) {
@@ -409,7 +415,8 @@ public class Ontology implements AutoCloseable {
     }
 
     public boolean isCoherent() {
-        return withReasonerDo(reasoner -> reasoner.getUnsatisfiableClasses().getEntitiesMinusBottom().isEmpty());
+        return withReasonerDo(reasoner -> reasoner.isConsistent()
+                && reasoner.getUnsatisfiableClasses().getEntitiesMinusBottom().isEmpty());
     }
 
     public boolean isEntailed(final OWLAxiom... axioms) {
@@ -435,11 +442,11 @@ public class Ontology implements AutoCloseable {
     }
 
     public Stream<Set<OWLAxiom>> maximalConsistentSubsets() {
-        return (new MaximalConsistentSubsets(this)).stream();
+        return minimalCorrectionSubsets().map(this::complement);
     }
 
     public Stream<Set<OWLAxiom>> maximalConsistentSubsets(final Predicate<Ontology> isRepaired) {
-        return (new MaximalConsistentSubsets(this, isRepaired)).stream();
+        return minimalCorrectionSubsets(isRepaired).map(this::complement);
     }
 
     public Stream<Set<OWLAxiom>> largestMaximalConsistentSubsets(final Predicate<Ontology> isRepaired) {
@@ -451,15 +458,27 @@ public class Ontology implements AutoCloseable {
      *         yield an optimal classical repair for consistency of the ontology.
      */
     public Stream<Set<OWLAxiom>> minimalCorrectionSubsets() {
-        return (new MaximalConsistentSubsets(this)).correctionStream();
+        return minimalCorrectionSubsets(Ontology::isConsistent);
     }
 
     public Stream<Set<OWLAxiom>> minimalCorrectionSubsets(final Predicate<Ontology> isRepaired) {
-        return (new MaximalConsistentSubsets(this)).correctionStream();
+        return MinimalSubsets.allMinimalSubsets(refutableAxioms, axioms -> {
+            try (final var ontology = new Ontology(staticAxioms, complement(axioms), reasonerCache)) {
+                return isRepaired.test(ontology);
+            }
+        });
+    }
+
+    public Stream<Set<OWLAxiom>> minimalUnsatisfiableSubsets(final Predicate<Ontology> isRepaired) {
+        return MinimalSubsets.allMinimalSubsets(refutableAxioms, axioms -> {
+            try (final var ontology = new Ontology(staticAxioms, axioms, reasonerCache)) {
+                return !isRepaired.test(ontology);
+            }
+        });
     }
 
     public Stream<Set<OWLAxiom>> smallestMinimalCorrectionSubsets(final Predicate<Ontology> isRepaired) {
-        return (new MaximalConsistentSubsets(this)).correctionStream();
+        return (new MaximalConsistentSubsets(this, isRepaired, true)).correctionStream();
     }
 
     /**
@@ -473,8 +492,11 @@ public class Ontology implements AutoCloseable {
      * @return A single minimal correction subset.
      */
     public Set<OWLAxiom> minimalCorrectionSubset(final Predicate<Ontology> isRepaired) {
-        return MinimalSubsets.getRandomizedMinimalSubset(refutableAxioms,
-                axioms -> isRepaired.test(new Ontology(staticAxioms, complement(axioms), reasonerCache)));
+        return MinimalSubsets.getRandomizedMinimalSubset(refutableAxioms, axioms -> {
+            try (final var ontology = new Ontology(staticAxioms, complement(axioms), reasonerCache)) {
+                return isRepaired.test(ontology);
+            }
+        });
     }
 
     /**
@@ -482,8 +504,11 @@ public class Ontology implements AutoCloseable {
      *         subset.
      */
     public Set<OWLAxiom> minimalUnsatisfiableSubset(final Predicate<Ontology> isRepaired) {
-        return MinimalSubsets.getRandomizedMinimalSubset(refutableAxioms,
-                axioms -> !isRepaired.test(new Ontology(staticAxioms, axioms, reasonerCache)));
+        return MinimalSubsets.getRandomizedMinimalSubset(refutableAxioms, axioms -> {
+            try (final var ontology = new Ontology(staticAxioms, axioms, reasonerCache)) {
+                return !isRepaired.test(ontology);
+            }
+        });
     }
 
     /**
@@ -497,8 +522,11 @@ public class Ontology implements AutoCloseable {
      * @return A single minimal correction subset.
      */
     public Stream<Set<OWLAxiom>> someMinimalCorrectionSubsets(final Predicate<Ontology> isRepaired) {
-        return MinimalSubsets.randomizedMinimalSubsets(refutableAxioms, 8,
-                axioms -> isRepaired.test(new Ontology(staticAxioms, complement(axioms), reasonerCache)));
+        return MinimalSubsets.randomizedMinimalSubsets(refutableAxioms, 1, axioms -> {
+            try (final var ontology = new Ontology(staticAxioms, complement(axioms), reasonerCache)) {
+                return isRepaired.test(ontology);
+            }
+        });
     }
 
     /**
@@ -506,8 +534,11 @@ public class Ontology implements AutoCloseable {
      *         subset.
      */
     public Stream<Set<OWLAxiom>> someMinimalUnsatisfiableSubsets(final Predicate<Ontology> isRepaired) {
-        return MinimalSubsets.randomizedMinimalSubsets(refutableAxioms, 8,
-                axioms -> !isRepaired.test(new Ontology(staticAxioms, axioms, reasonerCache)));
+        return MinimalSubsets.randomizedMinimalSubsets(refutableAxioms, 1, axioms -> {
+            try (final var ontology = new Ontology(staticAxioms, axioms, reasonerCache)) {
+                return !isRepaired.test(ontology);
+            }
+        });
     }
 
     /**

@@ -49,8 +49,9 @@ public abstract class OntologyRepair implements OntologyModification {
         }
     }
 
-    protected Stream<Set<OWLAxiom>> mcsPeekInfo(final Stream<Set<OWLAxiom>> stream) {
-        return stream.peek(mcs -> infoMessage("Found maximal consistent set of size " + mcs.size() + "."));
+    protected Stream<Set<OWLAxiom>> mcsPeekInfo(final boolean minimal, final Stream<Set<OWLAxiom>> stream) {
+        return stream.peek(mcs -> infoMessage("Found " + (minimal ? "minimal correction" : "maximal consistent")
+                + " subset of size " + mcs.size() + "."));
     }
 
     @Override
