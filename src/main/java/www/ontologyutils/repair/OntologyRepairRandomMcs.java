@@ -18,14 +18,14 @@ public class OntologyRepairRandomMcs extends OntologyRepair {
         ALL_MCS, SOME_MCS, ONE_MCS,
     }
 
-    private final McsComputationStrategy mcsComputation;
+    private McsComputationStrategy mcsComputation;
 
-    public OntologyRepairRandomMcs(final Predicate<Ontology> isRepaired, final McsComputationStrategy mcs) {
+    public OntologyRepairRandomMcs(Predicate<Ontology> isRepaired, McsComputationStrategy mcs) {
         super(isRepaired);
         this.mcsComputation = mcs;
     }
 
-    public OntologyRepairRandomMcs(final Predicate<Ontology> isRepaired) {
+    public OntologyRepairRandomMcs(Predicate<Ontology> isRepaired) {
         this(isRepaired, McsComputationStrategy.SOME_MCS);
     }
 
@@ -49,7 +49,7 @@ public class OntologyRepairRandomMcs extends OntologyRepair {
      * @return An instance of {@code OntologyRepairRandomMcs} that tries to remove
      *         all {@code axioms} from being entailed by the ontology.
      */
-    public static OntologyRepair forRemovingEntailments(final Collection<? extends OWLAxiom> axioms) {
+    public static OntologyRepair forRemovingEntailments(Collection<? extends OWLAxiom> axioms) {
         return new OntologyRepairRandomMcs(o -> axioms.stream().allMatch(axiom -> !o.isEntailed(axiom)));
     }
 
@@ -57,7 +57,7 @@ public class OntologyRepairRandomMcs extends OntologyRepair {
      * @return An instance of {@code OntologyRepairRandomMcs} that tries to make
      *         {@code concept} satisfiable.
      */
-    public static OntologyRepair forConceptSatisfiability(final OWLClassExpression concept) {
+    public static OntologyRepair forConceptSatisfiability(OWLClassExpression concept) {
         return new OntologyRepairRandomMcs(o -> o.isSatisfiable(concept));
     }
 
@@ -69,7 +69,7 @@ public class OntologyRepairRandomMcs extends OntologyRepair {
      *            The ontology for which to compute the minimal correction subset
      * @return A stream containing minimal correction subsets
      */
-    public Stream<Set<OWLAxiom>> computeMcs(final Ontology ontology) {
+    public Stream<Set<OWLAxiom>> computeMcs(Ontology ontology) {
         switch (mcsComputation) {
             case ALL_MCS:
                 return ontology.minimalCorrectionSubsets(isRepaired);
@@ -83,8 +83,8 @@ public class OntologyRepairRandomMcs extends OntologyRepair {
     }
 
     @Override
-    public void repair(final Ontology ontology) {
-        final var toRemove = Utils.randomChoice(mcsPeekInfo(true, computeMcs(ontology)));
+    public void repair(Ontology ontology) {
+        var toRemove = Utils.randomChoice(mcsPeekInfo(true, computeMcs(ontology)));
         ontology.removeAxioms(toRemove);
         infoMessage("Selected a repair with " + ontology.axioms().count() + " axioms.");
     }

@@ -14,8 +14,8 @@ import www.ontologyutils.toolbox.Ontology;
  */
 public class AxiomStrengthener extends AxiomRefinement {
     private static class Visitor extends AxiomRefinement.Visitor {
-        public Visitor(final RefinementOperator up, final RefinementOperator down,
-                final Set<OWLObjectProperty> simpleRoles, final int flags) {
+        public Visitor(RefinementOperator up, RefinementOperator down,
+                Set<OWLObjectProperty> simpleRoles, int flags) {
             super(up, down, simpleRoles, flags);
         }
 
@@ -25,13 +25,13 @@ public class AxiomStrengthener extends AxiomRefinement {
         }
     }
 
-    private AxiomStrengthener(final Covers covers, final Cover upCover, final Cover downCover,
-            final Set<OWLObjectProperty> simpleRoles, final int flags) {
+    private AxiomStrengthener(Covers covers, Cover upCover, Cover downCover,
+            Set<OWLObjectProperty> simpleRoles, int flags) {
         super(new Visitor(new RefinementOperator(downCover, upCover, flags),
                 new RefinementOperator(upCover, downCover, flags), simpleRoles, flags), covers);
     }
 
-    private AxiomStrengthener(final Covers covers, final Set<OWLObjectProperty> simpleRoles, final int flags) {
+    private AxiomStrengthener(Covers covers, Set<OWLObjectProperty> simpleRoles, int flags) {
         this(covers, covers.upCover().cached(), covers.downCover().cached(), simpleRoles, flags);
     }
 
@@ -45,7 +45,7 @@ public class AxiomStrengthener extends AxiomRefinement {
      * @param simpleRoles
      *            The roles that are guaranteed to be simple.
      */
-    public AxiomStrengthener(final Ontology refOntology, final Set<OWLObjectProperty> simpleRoles) {
+    public AxiomStrengthener(Ontology refOntology, Set<OWLObjectProperty> simpleRoles) {
         this(new Covers(refOntology, simpleRoles), simpleRoles, FLAG_NON_STRICT);
     }
 
@@ -58,7 +58,7 @@ public class AxiomStrengthener extends AxiomRefinement {
      *            The maximal ontology in which the weaker axioms will be
      *            used in.
      */
-    public AxiomStrengthener(final Ontology refOntology, final Ontology fullOntology) {
+    public AxiomStrengthener(Ontology refOntology, Ontology fullOntology) {
         this(refOntology, fullOntology.simpleRoles().collect(Collectors.toSet()));
     }
 
@@ -71,7 +71,7 @@ public class AxiomStrengthener extends AxiomRefinement {
      * @param refOntology
      *            The reference ontology to use for the up and down covers.
      */
-    public AxiomStrengthener(final Ontology refOntology) {
+    public AxiomStrengthener(Ontology refOntology) {
         this(refOntology, refOntology);
     }
 
@@ -85,7 +85,7 @@ public class AxiomStrengthener extends AxiomRefinement {
      *            The axiom for which we want to find stronger axioms.
      * @return A stream of axioms that are all stronger than {@code axiom}.
      */
-    public Stream<OWLAxiom> strongerAxioms(final OWLAxiom axiom) {
+    public Stream<OWLAxiom> strongerAxioms(OWLAxiom axiom) {
         return refineAxioms(axiom);
     }
 }

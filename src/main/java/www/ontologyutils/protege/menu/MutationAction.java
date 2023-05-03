@@ -31,15 +31,15 @@ public abstract class MutationAction extends ProtegeOWLAction {
         getOWLModelManager().removeListener(listener);
     }
 
-    protected abstract boolean performMutation(final Ontology ontology);
+    protected abstract boolean performMutation(Ontology ontology);
 
     @Override
-    public void actionPerformed(final ActionEvent event) {
-        final var thread = new Thread(() -> {
-            final var reasonerFactory = getOWLModelManager().getOWLReasonerManager()
+    public void actionPerformed(ActionEvent event) {
+        var thread = new Thread(() -> {
+            var reasonerFactory = getOWLModelManager().getOWLReasonerManager()
                     .getCurrentReasonerFactory().getReasonerFactory();
-            final var owlOntology = getOWLModelManager().getActiveOntology();
-            final var ontology = Ontology.withAxiomsFrom(owlOntology, reasonerFactory);
+            var owlOntology = getOWLModelManager().getActiveOntology();
+            var ontology = Ontology.withAxiomsFrom(owlOntology, reasonerFactory);
             if (performMutation(ontology)) {
                 SwingUtilities.invokeLater(() -> {
                     ontology.applyChangesTo(owlOntology);

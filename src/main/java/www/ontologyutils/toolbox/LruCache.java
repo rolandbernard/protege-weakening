@@ -12,14 +12,14 @@ import java.util.stream.Stream;
  * overwritten to specify a maximal cache size.
  */
 public class LruCache<K, V> extends LinkedHashMap<K, V> {
-    private final int cacheSize;
+    private int cacheSize;
 
     /**
      * Create a new cache with the specified size.
      *
      * @param cacheSize
      */
-    public LruCache(final int cacheSize) {
+    public LruCache(int cacheSize) {
         super(cacheSize * 2, 0.75f, true);
         this.cacheSize = cacheSize;
     }
@@ -34,8 +34,8 @@ public class LruCache<K, V> extends LinkedHashMap<K, V> {
      * @param cacheSize
      * @return The wrapped function.
      */
-    public static <K, V> Function<K, V> wrapFunction(final Function<K, V> function, final int cacheSize) {
-        final var cache = new LruCache<K, V>(cacheSize);
+    public static <K, V> Function<K, V> wrapFunction(Function<K, V> function, int cacheSize) {
+        var cache = new LruCache<K, V>(cacheSize);
         return input -> {
             return cache.computeIfAbsent(input, function);
         };
@@ -50,7 +50,7 @@ public class LruCache<K, V> extends LinkedHashMap<K, V> {
      * @param function
      * @return The wrapped function.
      */
-    public static <K, V> Function<K, V> wrapFunction(final Function<K, V> function) {
+    public static <K, V> Function<K, V> wrapFunction(Function<K, V> function) {
         return wrapFunction(function, 4096);
     }
 
@@ -63,13 +63,13 @@ public class LruCache<K, V> extends LinkedHashMap<K, V> {
      * @param function
      * @return The wrapped function.
      */
-    public static <K, V> Function<K, Stream<V>> wrapStreamFunction(final Function<K, Stream<V>> function) {
-        final var cached = wrapFunction((K input) -> function.apply(input).collect(Collectors.toList()));
+    public static <K, V> Function<K, Stream<V>> wrapStreamFunction(Function<K, Stream<V>> function) {
+        var cached = wrapFunction((K input) -> function.apply(input).collect(Collectors.toList()));
         return input -> cached.apply(input).stream();
     }
 
     @Override
-    protected boolean removeEldestEntry(final Map.Entry<K, V> eldest) {
+    protected boolean removeEldestEntry(Map.Entry<K, V> eldest) {
         return size() > cacheSize;
     }
 }

@@ -9,12 +9,12 @@ import www.ontologyutils.toolbox.*;
  * operator and axiom weakener.
  */
 public class SroiqNormalization implements OntologyModification {
-    private final TBoxNormalization tBoxNormalization;
-    private final ABoxNormalization aBoxNormalization;
-    private final RBoxNormalization rBoxNormalization;
-    private final ConceptNormalization conceptNormalization;
+    private TBoxNormalization tBoxNormalization;
+    private ABoxNormalization aBoxNormalization;
+    private RBoxNormalization rBoxNormalization;
+    private ConceptNormalization conceptNormalization;
 
-    public SroiqNormalization(final boolean binaryOperators, final boolean fullEquality) {
+    public SroiqNormalization(boolean binaryOperators, boolean fullEquality) {
         tBoxNormalization = new TBoxNormalization();
         aBoxNormalization = new ABoxNormalization(fullEquality);
         rBoxNormalization = new RBoxNormalization(fullEquality);
@@ -26,7 +26,7 @@ public class SroiqNormalization implements OntologyModification {
     }
 
     @Override
-    public void apply(final Ontology ontology) throws IllegalArgumentException {
+    public void apply(Ontology ontology) throws IllegalArgumentException {
         tBoxNormalization.apply(ontology);
         aBoxNormalization.apply(ontology);
         rBoxNormalization.apply(ontology);

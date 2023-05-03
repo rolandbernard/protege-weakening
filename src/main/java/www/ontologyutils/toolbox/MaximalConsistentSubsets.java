@@ -15,18 +15,18 @@ public class MaximalConsistentSubsets {
         public int k;
         public Set<OWLAxiom> removed;
 
-        public QueueItem(final int k, final Set<OWLAxiom> removed) {
+        public QueueItem(int k, Set<OWLAxiom> removed) {
             this.k = k;
             this.removed = removed;
         }
     }
 
-    private final Predicate<Ontology> isRepaired;
-    private final Ontology ontology;
-    private final List<OWLAxiom> axioms;
-    private final Deque<QueueItem> queue;
-    private final SetOfSets<OWLAxiom> results;
-    private final boolean largest;
+    private Predicate<Ontology> isRepaired;
+    private Ontology ontology;
+    private List<OWLAxiom> axioms;
+    private Deque<QueueItem> queue;
+    private SetOfSets<OWLAxiom> results;
+    private boolean largest;
     private Set<OWLAxiom> lastResult;
     private Set<OWLAxiom> result;
 
@@ -40,8 +40,8 @@ public class MaximalConsistentSubsets {
      *            Return only the largest maximal consistent sets (or
      *            smallest corrections)
      */
-    public MaximalConsistentSubsets(final Ontology ontology, final Predicate<Ontology> isRepaired,
-            final boolean largest) {
+    public MaximalConsistentSubsets(Ontology ontology, Predicate<Ontology> isRepaired,
+            boolean largest) {
         this.ontology = ontology;
         this.isRepaired = isRepaired;
         axioms = ontology.refutableAxioms().collect(Collectors.toList());
@@ -58,7 +58,7 @@ public class MaximalConsistentSubsets {
      * @param isRepaired
      *            The predicate with which to measure "consistency".
      */
-    public MaximalConsistentSubsets(final Ontology ontology, final Predicate<Ontology> isRepaired) {
+    public MaximalConsistentSubsets(Ontology ontology, Predicate<Ontology> isRepaired) {
         this(ontology, isRepaired, false);
     }
 
@@ -69,7 +69,7 @@ public class MaximalConsistentSubsets {
      * @throws IllegalArgumentException
      *             If there is no maximal consistent subset.
      */
-    public MaximalConsistentSubsets(final Ontology ontology) throws IllegalArgumentException {
+    public MaximalConsistentSubsets(Ontology ontology) throws IllegalArgumentException {
         this(ontology, Ontology::isConsistent);
     }
 
@@ -82,14 +82,14 @@ public class MaximalConsistentSubsets {
      * @return True iff {@code ontology} is maximally consistent with respect to
      *         {@code axioms}.
      */
-    public static boolean isMaximallyConsistentWithRespectTo(final Ontology ontology,
-            final Collection<? extends OWLAxiom> axioms) {
+    public static boolean isMaximallyConsistentWithRespectTo(Ontology ontology,
+            Collection<? extends OWLAxiom> axioms) {
         if (!ontology.isConsistent()) {
             return false;
         }
-        final var contained = ontology.axioms().collect(Collectors.toSet());
-        try (final var copy = ontology.clone()) {
-            for (final var axiom : axioms) {
+        var contained = ontology.axioms().collect(Collectors.toSet());
+        try (var copy = ontology.clone()) {
+            for (var axiom : axioms) {
                 if (!contained.contains(axiom)) {
                     copy.addAxioms(axiom);
                     if (copy.isConsistent()) {
@@ -109,13 +109,13 @@ public class MaximalConsistentSubsets {
      */
     private boolean computeNextResult() {
         while (!queue.isEmpty()) {
-            final var current = queue.pop();
+            var current = queue.pop();
             if (largest && lastResult != null && current.removed.size() > lastResult.size()) {
                 break;
             } else if (results.containsSubset(current.removed)) {
                 continue;
             } else {
-                try (final var subset = ontology.clone()) {
+                try (var subset = ontology.clone()) {
                     subset.removeAxioms(current.removed);
                     if (isRepaired.test(subset)) {
                         results.add(current.removed);
@@ -125,8 +125,8 @@ public class MaximalConsistentSubsets {
                     } else {
                         subset.removeAxioms(axioms.stream().skip(current.k));
                         for (int i = current.k; i < axioms.size(); i++) {
-                            final var removed = new HashSet<>(current.removed);
-                            final var axiom = axioms.get(i);
+                            var removed = new HashSet<>(current.removed);
+                            var axiom = axioms.get(i);
                             removed.add(axiom);
                             queue.add(new QueueItem(i + 1, removed));
                             subset.addAxioms(axiom);
@@ -167,7 +167,7 @@ public class MaximalConsistentSubsets {
                         if (result == null) {
                             computeNextResult();
                         }
-                        final var next = result;
+                        var next = result;
                         result = null;
                         return next;
                     }

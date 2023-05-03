@@ -24,13 +24,13 @@ import www.ontologyutils.toolbox.*;
  */
 public class Covers implements AutoCloseable {
     public static class Cover {
-        private final Function<OWLClassExpression, Stream<OWLClassExpression>> conceptCover;
-        private final Function<OWLObjectPropertyExpression, Stream<OWLObjectPropertyExpression>> roleCover;
-        private final Function<Integer, Stream<Integer>> intCover;
+        private Function<OWLClassExpression, Stream<OWLClassExpression>> conceptCover;
+        private Function<OWLObjectPropertyExpression, Stream<OWLObjectPropertyExpression>> roleCover;
+        private Function<Integer, Stream<Integer>> intCover;
 
-        public Cover(final Function<OWLClassExpression, Stream<OWLClassExpression>> conceptCover,
-                final Function<OWLObjectPropertyExpression, Stream<OWLObjectPropertyExpression>> roleCover,
-                final Function<Integer, Stream<Integer>> intCover) {
+        public Cover(Function<OWLClassExpression, Stream<OWLClassExpression>> conceptCover,
+                Function<OWLObjectPropertyExpression, Stream<OWLObjectPropertyExpression>> roleCover,
+                Function<Integer, Stream<Integer>> intCover) {
             this.conceptCover = conceptCover;
             this.roleCover = roleCover;
             this.intCover = intCover;
@@ -46,23 +46,23 @@ public class Covers implements AutoCloseable {
                     LruCache.wrapStreamFunction(intCover));
         }
 
-        public Stream<OWLClassExpression> apply(final OWLClassExpression concept) {
+        public Stream<OWLClassExpression> apply(OWLClassExpression concept) {
             return conceptCover.apply(concept);
         }
 
-        public Stream<OWLObjectPropertyExpression> apply(final OWLObjectPropertyExpression role) {
+        public Stream<OWLObjectPropertyExpression> apply(OWLObjectPropertyExpression role) {
             return roleCover.apply(role);
         }
 
-        public Stream<Integer> apply(final int number) {
+        public Stream<Integer> apply(int number) {
             return intCover.apply(number);
         }
     }
 
-    public final OWLDataFactory df;
-    public final Ontology refOntology;
-    public final Set<OWLClassExpression> subConcepts;
-    public final Set<OWLObjectProperty> simpleRoles;
+    public OWLDataFactory df;
+    public Ontology refOntology;
+    public Set<OWLClassExpression> subConcepts;
+    public Set<OWLObjectProperty> simpleRoles;
     public OWLReasoner reasoner;
 
     /**
@@ -73,7 +73,7 @@ public class Covers implements AutoCloseable {
      * @param simpleRoles
      *            Return only roles that are in this set.
      */
-    public Covers(final Ontology refOntology, final Set<OWLObjectProperty> simpleRoles) {
+    public Covers(Ontology refOntology, Set<OWLObjectProperty> simpleRoles) {
         df = Ontology.getDefaultDataFactory();
         this.refOntology = refOntology;
         this.reasoner = refOntology.getOwlReasoner();
@@ -89,11 +89,11 @@ public class Covers implements AutoCloseable {
      * @return True iff the reference ontology of this cover entails that
      *         {@code subclass} is a subclass of {@code superclass}.
      */
-    private boolean isSubclass(final OWLClassExpression subclass, final OWLClassExpression superclass) {
+    private boolean isSubclass(OWLClassExpression subclass, OWLClassExpression superclass) {
         if (Thread.interrupted()) {
             throw new CanceledException();
         }
-        final var testAxiom = df.getOWLSubClassOfAxiom(subclass, superclass);
+        var testAxiom = df.getOWLSubClassOfAxiom(subclass, superclass);
         return reasoner.isEntailed(testAxiom);
     }
 
@@ -106,7 +106,7 @@ public class Covers implements AutoCloseable {
      * @return True iff the reference ontology of this cover entails that
      *         {@code subclass} is a strict subclass of {@code superclass}.
      */
-    private boolean isStrictSubclass(final OWLClassExpression subclass, final OWLClassExpression superclass) {
+    private boolean isStrictSubclass(OWLClassExpression subclass, OWLClassExpression superclass) {
         return isSubclass(subclass, superclass) && !isSubclass(superclass, subclass);
     }
 
@@ -115,7 +115,7 @@ public class Covers implements AutoCloseable {
      * @param candidate
      * @return True iff {@code candidate} is in the upward cover of {@code concept}.
      */
-    private boolean isInUpCover(final OWLClassExpression concept, final OWLClassExpression candidate) {
+    private boolean isInUpCover(OWLClassExpression concept, OWLClassExpression candidate) {
         if (!subConcepts.contains(candidate) || !isSubclass(concept, candidate)) {
             return false;
         } else {
@@ -128,7 +128,7 @@ public class Covers implements AutoCloseable {
      * @param concept
      * @return All concepts that are in the upward cover of {@code concept}.
      */
-    public Stream<OWLClassExpression> upCover(final OWLClassExpression concept) {
+    public Stream<OWLClassExpression> upCover(OWLClassExpression concept) {
         return subConcepts.stream()
                 .filter(candidate -> isInUpCover(concept, candidate));
     }
@@ -139,7 +139,7 @@ public class Covers implements AutoCloseable {
      * @return True iff {@code candidate} is in the downward cover of
      *         {@code concept}.
      */
-    private boolean isInDownCover(final OWLClassExpression concept, final OWLClassExpression candidate) {
+    private boolean isInDownCover(OWLClassExpression concept, OWLClassExpression candidate) {
         if (!subConcepts.contains(candidate) || !isSubclass(candidate, concept)) {
             return false;
         } else {
@@ -152,7 +152,7 @@ public class Covers implements AutoCloseable {
      * @param concept
      * @return All concepts that are in the downward cover of {@code concept}.
      */
-    public Stream<OWLClassExpression> downCover(final OWLClassExpression concept) {
+    public Stream<OWLClassExpression> downCover(OWLClassExpression concept) {
         return subConcepts.stream()
                 .filter(candidate -> isInDownCover(concept, candidate));
     }
@@ -170,11 +170,11 @@ public class Covers implements AutoCloseable {
      * @return True iff the reference ontology of this cover entails that
      *         {@code subRole} is subsumed by {@code superRole}.
      */
-    private boolean isSubRole(final OWLObjectPropertyExpression subRole, final OWLObjectPropertyExpression superRole) {
+    private boolean isSubRole(OWLObjectPropertyExpression subRole, OWLObjectPropertyExpression superRole) {
         if (Thread.interrupted()) {
             throw new CanceledException();
         }
-        final var testAxiom = df.getOWLSubObjectPropertyOfAxiom(subRole, superRole);
+        var testAxiom = df.getOWLSubObjectPropertyOfAxiom(subRole, superRole);
         return reasoner.isEntailed(testAxiom);
     }
 
@@ -187,8 +187,8 @@ public class Covers implements AutoCloseable {
      * @return True iff the reference ontology of this cover entails that
      *         {@code subRole} is strictly subsumed by {@code superRole}.
      */
-    private boolean isStrictSubRole(final OWLObjectPropertyExpression subRole,
-            final OWLObjectPropertyExpression superRole) {
+    private boolean isStrictSubRole(OWLObjectPropertyExpression subRole,
+            OWLObjectPropertyExpression superRole) {
         return isSubRole(subRole, superRole) && !isSubRole(superRole, subRole);
     }
 
@@ -197,7 +197,7 @@ public class Covers implements AutoCloseable {
      * @param candidate
      * @return True iff {@code candidate} is in the upward cover of {@code role}.
      */
-    private boolean isInUpCover(final OWLObjectPropertyExpression role, final OWLObjectPropertyExpression candidate) {
+    private boolean isInUpCover(OWLObjectPropertyExpression role, OWLObjectPropertyExpression candidate) {
         if (!simpleRoles.contains(candidate.getNamedProperty()) || !isSubRole(role, candidate)) {
             return false;
         } else {
@@ -210,7 +210,7 @@ public class Covers implements AutoCloseable {
      * @param role
      * @return All role that are in the upward cover of {@code role}.
      */
-    public Stream<OWLObjectPropertyExpression> upCover(final OWLObjectPropertyExpression role) {
+    public Stream<OWLObjectPropertyExpression> upCover(OWLObjectPropertyExpression role) {
         return allSimpleRoles().filter(candidate -> isInUpCover(role, candidate));
     }
 
@@ -220,7 +220,7 @@ public class Covers implements AutoCloseable {
      * @return True iff {@code candidate} is in the downward cover of
      *         {@code role}.
      */
-    private boolean isInDownCover(final OWLObjectPropertyExpression role, final OWLObjectPropertyExpression candidate) {
+    private boolean isInDownCover(OWLObjectPropertyExpression role, OWLObjectPropertyExpression candidate) {
         if (!simpleRoles.contains(candidate.getNamedProperty()) || !isSubRole(candidate, role)) {
             return false;
         } else {
@@ -233,7 +233,7 @@ public class Covers implements AutoCloseable {
      * @param role
      * @return All roles that are in the downward cover of {@code role}.
      */
-    public Stream<OWLObjectPropertyExpression> downCover(final OWLObjectPropertyExpression role) {
+    public Stream<OWLObjectPropertyExpression> downCover(OWLObjectPropertyExpression role) {
         return allSimpleRoles().filter(candidate -> isInDownCover(role, candidate));
     }
 
@@ -241,7 +241,7 @@ public class Covers implements AutoCloseable {
      * @param number
      * @return All numbers that are in the downward cover of {@code number}.
      */
-    public Stream<Integer> upCover(final Integer number) {
+    public Stream<Integer> upCover(Integer number) {
         return Stream.of(number, number + 1);
     }
 
@@ -249,7 +249,7 @@ public class Covers implements AutoCloseable {
      * @param number
      * @return All numbers that are in the downward cover of {@code number}.
      */
-    public Stream<Integer> downCover(final Integer number) {
+    public Stream<Integer> downCover(Integer number) {
         if (number == 0) {
             return Stream.of(0);
         } else {

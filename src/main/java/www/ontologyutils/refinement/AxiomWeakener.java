@@ -19,8 +19,8 @@ import www.ontologyutils.toolbox.*;
  */
 public class AxiomWeakener extends AxiomRefinement {
     private static class Visitor extends AxiomRefinement.Visitor {
-        public Visitor(final RefinementOperator up, final RefinementOperator down,
-                final Set<OWLObjectProperty> simpleRoles, final int flags) {
+        public Visitor(RefinementOperator up, RefinementOperator down,
+                Set<OWLObjectProperty> simpleRoles, int flags) {
             super(up, down, simpleRoles, flags);
         }
 
@@ -30,8 +30,8 @@ public class AxiomWeakener extends AxiomRefinement {
         }
 
         @Override
-        public Stream<OWLAxiom> visit(final OWLSameIndividualAxiom axiom) {
-            final var individuals = axiom.getIndividualsAsList();
+        public Stream<OWLAxiom> visit(OWLSameIndividualAxiom axiom) {
+            var individuals = axiom.getIndividualsAsList();
             if (individuals.size() <= 2) {
                 return super.visit(axiom);
             } else {
@@ -46,8 +46,8 @@ public class AxiomWeakener extends AxiomRefinement {
         }
 
         @Override
-        public Stream<OWLAxiom> visit(final OWLDifferentIndividualsAxiom axiom) {
-            final var individuals = axiom.getIndividualsAsList();
+        public Stream<OWLAxiom> visit(OWLDifferentIndividualsAxiom axiom) {
+            var individuals = axiom.getIndividualsAsList();
             if (individuals.size() <= 2) {
                 return super.visit(axiom);
             } else {
@@ -62,11 +62,11 @@ public class AxiomWeakener extends AxiomRefinement {
         }
 
         @Override
-        public Stream<OWLAxiom> visit(final OWLEquivalentClassesAxiom axiom) {
+        public Stream<OWLAxiom> visit(OWLEquivalentClassesAxiom axiom) {
             if ((flags & (FLAG_ALC_STRICT | FLAG_SROIQ_STRICT)) != 0) {
                 throw new IllegalArgumentException("The axiom " + axiom + " is not a SROIQ axiom.");
             }
-            final var concepts = axiom.getClassExpressionsAsList();
+            var concepts = axiom.getClassExpressionsAsList();
             if (concepts.size() <= 2) {
                 return super.visit(axiom);
             } else {
@@ -78,11 +78,11 @@ public class AxiomWeakener extends AxiomRefinement {
         }
 
         @Override
-        public Stream<OWLAxiom> visit(final OWLEquivalentObjectPropertiesAxiom axiom) {
+        public Stream<OWLAxiom> visit(OWLEquivalentObjectPropertiesAxiom axiom) {
             if ((flags & (FLAG_ALC_STRICT | FLAG_SROIQ_STRICT)) != 0) {
                 throw new IllegalArgumentException("The axiom " + axiom + " is not a SROIQ axiom.");
             }
-            final var properties = List.copyOf(axiom.getProperties());
+            var properties = List.copyOf(axiom.getProperties());
             if (properties.size() <= 2) {
                 return super.visit(axiom);
             } else {
@@ -94,13 +94,13 @@ public class AxiomWeakener extends AxiomRefinement {
         }
     }
 
-    private AxiomWeakener(final Covers covers, final Cover upCover, final Cover downCover,
-            final Set<OWLObjectProperty> simpleRoles, final int flags) {
+    private AxiomWeakener(Covers covers, Cover upCover, Cover downCover,
+            Set<OWLObjectProperty> simpleRoles, int flags) {
         super(new Visitor(new RefinementOperator(upCover, downCover, flags),
                 new RefinementOperator(downCover, upCover, flags), simpleRoles, flags), covers);
     }
 
-    private AxiomWeakener(final Covers covers, final Set<OWLObjectProperty> simpleRoles, final int flags) {
+    private AxiomWeakener(Covers covers, Set<OWLObjectProperty> simpleRoles, int flags) {
         this(covers, covers.upCover().cached(), covers.downCover().cached(), simpleRoles, flags);
     }
 
@@ -114,7 +114,7 @@ public class AxiomWeakener extends AxiomRefinement {
      * @param simpleRoles
      *            The roles that are guaranteed to be simple.
      */
-    public AxiomWeakener(final Ontology refOntology, final Set<OWLObjectProperty> simpleRoles) {
+    public AxiomWeakener(Ontology refOntology, Set<OWLObjectProperty> simpleRoles) {
         this(new Covers(refOntology, simpleRoles), simpleRoles, FLAG_NON_STRICT);
     }
 
@@ -127,7 +127,7 @@ public class AxiomWeakener extends AxiomRefinement {
      *            The maximal ontology in which the weaker axioms will be
      *            used in.
      */
-    public AxiomWeakener(final Ontology refOntology, final Ontology fullOntology) {
+    public AxiomWeakener(Ontology refOntology, Ontology fullOntology) {
         this(refOntology, fullOntology.simpleRoles().collect(Collectors.toSet()));
     }
 
@@ -140,7 +140,7 @@ public class AxiomWeakener extends AxiomRefinement {
      * @param refOntology
      *            The reference ontology to use for the up and down covers.
      */
-    public AxiomWeakener(final Ontology refOntology) {
+    public AxiomWeakener(Ontology refOntology) {
         this(refOntology, refOntology);
     }
 
@@ -154,7 +154,7 @@ public class AxiomWeakener extends AxiomRefinement {
      *            The axiom for which we want to find weaker axioms.
      * @return A stream of axioms that are all weaker than {@code axiom}.
      */
-    public Stream<OWLAxiom> weakerAxioms(final OWLAxiom axiom) {
+    public Stream<OWLAxiom> weakerAxioms(OWLAxiom axiom) {
         return refineAxioms(axiom);
     }
 }

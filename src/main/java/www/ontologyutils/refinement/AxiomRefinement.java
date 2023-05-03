@@ -29,14 +29,14 @@ public abstract class AxiomRefinement implements AutoCloseable {
     public static final int FLAG_SROIQ_STRICT = 1 << 2;
 
     protected static abstract class Visitor extends OWLAxiomVisitorExAdapter<Stream<OWLAxiom>> {
-        protected final OWLDataFactory df;
-        protected final RefinementOperator up;
-        protected final RefinementOperator down;
-        protected final Set<OWLObjectProperty> simpleRoles;
-        protected final int flags;
+        protected OWLDataFactory df;
+        protected RefinementOperator up;
+        protected RefinementOperator down;
+        protected Set<OWLObjectProperty> simpleRoles;
+        protected int flags;
 
-        public Visitor(final RefinementOperator up, final RefinementOperator down,
-                final Set<OWLObjectProperty> simpleRoles, final int flags) {
+        public Visitor(RefinementOperator up, RefinementOperator down,
+                Set<OWLObjectProperty> simpleRoles, int flags) {
             super(null);
             df = Ontology.getDefaultDataFactory();
             this.up = up;
@@ -48,15 +48,15 @@ public abstract class AxiomRefinement implements AutoCloseable {
         protected abstract OWLAxiom noopAxiom();
 
         @Override
-        public Stream<OWLAxiom> visit(final OWLDeclarationAxiom axiom) {
+        public Stream<OWLAxiom> visit(OWLDeclarationAxiom axiom) {
             // These axioms can not be weakened and must not be removed.
             return Stream.of(axiom);
         }
 
         @Override
-        public Stream<OWLAxiom> visit(final OWLSubClassOfAxiom axiom) {
-            final var subclass = axiom.getSubClass();
-            final var superclass = axiom.getSuperClass();
+        public Stream<OWLAxiom> visit(OWLSubClassOfAxiom axiom) {
+            var subclass = axiom.getSubClass();
+            var superclass = axiom.getSuperClass();
             return Stream.concat(
                     down.refine(subclass)
                             .map(newSubclass -> df.getOWLSubClassOfAxiom(newSubclass, superclass)),
@@ -65,18 +65,18 @@ public abstract class AxiomRefinement implements AutoCloseable {
         }
 
         @Override
-        public Stream<OWLAxiom> visit(final OWLClassAssertionAxiom axiom) {
-            final var concept = axiom.getClassExpression();
-            final var individual = axiom.getIndividual();
+        public Stream<OWLAxiom> visit(OWLClassAssertionAxiom axiom) {
+            var concept = axiom.getClassExpression();
+            var individual = axiom.getIndividual();
             return up.refine(concept)
                     .map(newConcept -> df.getOWLClassAssertionAxiom(newConcept, individual));
         }
 
         @Override
-        public Stream<OWLAxiom> visit(final OWLObjectPropertyAssertionAxiom axiom) {
-            final var subject = axiom.getSubject();
-            final var role = axiom.getProperty();
-            final var object = axiom.getObject();
+        public Stream<OWLAxiom> visit(OWLObjectPropertyAssertionAxiom axiom) {
+            var subject = axiom.getSubject();
+            var role = axiom.getProperty();
+            var object = axiom.getObject();
             return Stream.concat(
                     up.refine(role)
                             .map(newRole -> df.getOWLObjectPropertyAssertionAxiom(newRole, subject, object)),
@@ -84,10 +84,10 @@ public abstract class AxiomRefinement implements AutoCloseable {
         }
 
         @Override
-        public Stream<OWLAxiom> visit(final OWLNegativeObjectPropertyAssertionAxiom axiom) {
-            final var subject = axiom.getSubject();
-            final var role = axiom.getProperty();
-            final var object = axiom.getObject();
+        public Stream<OWLAxiom> visit(OWLNegativeObjectPropertyAssertionAxiom axiom) {
+            var subject = axiom.getSubject();
+            var role = axiom.getProperty();
+            var object = axiom.getObject();
             return Stream.concat(
                     down.refine(role)
                             .map(newRole -> df.getOWLNegativeObjectPropertyAssertionAxiom(newRole, subject, object)),
@@ -95,7 +95,7 @@ public abstract class AxiomRefinement implements AutoCloseable {
         }
 
         @Override
-        public Stream<OWLAxiom> visit(final OWLSameIndividualAxiom axiom) {
+        public Stream<OWLAxiom> visit(OWLSameIndividualAxiom axiom) {
             if ((flags & (FLAG_ALC_STRICT | FLAG_SROIQ_STRICT)) != 0 && axiom.getIndividuals().size() > 2) {
                 throw new IllegalArgumentException("The axiom " + axiom + " is not a SROIQ axiom.");
             }
@@ -103,7 +103,7 @@ public abstract class AxiomRefinement implements AutoCloseable {
         }
 
         @Override
-        public Stream<OWLAxiom> visit(final OWLDifferentIndividualsAxiom axiom) {
+        public Stream<OWLAxiom> visit(OWLDifferentIndividualsAxiom axiom) {
             if ((flags & (FLAG_ALC_STRICT | FLAG_SROIQ_STRICT)) != 0 && axiom.getIndividuals().size() > 2) {
                 throw new IllegalArgumentException("The axiom " + axiom + " is not a SROIQ axiom.");
             }
@@ -111,11 +111,11 @@ public abstract class AxiomRefinement implements AutoCloseable {
         }
 
         @Override
-        public Stream<OWLAxiom> visit(final OWLDisjointClassesAxiom axiom) {
+        public Stream<OWLAxiom> visit(OWLDisjointClassesAxiom axiom) {
             if ((flags & (FLAG_ALC_STRICT | FLAG_SROIQ_STRICT)) != 0) {
                 throw new IllegalArgumentException("The axiom " + axiom + " is not a SROIQ axiom.");
             }
-            final var concepts = axiom.getClassExpressionsAsList();
+            var concepts = axiom.getClassExpressionsAsList();
             return IntStream.range(0, concepts.size()).mapToObj(i -> i)
                     .flatMap(i -> down.refine(concepts.get(i))
                             .map(refined -> df.getOWLDisjointClassesAxiom(
@@ -123,29 +123,29 @@ public abstract class AxiomRefinement implements AutoCloseable {
         }
 
         @Override
-        public Stream<OWLAxiom> visit(final OWLObjectPropertyDomainAxiom axiom) {
+        public Stream<OWLAxiom> visit(OWLObjectPropertyDomainAxiom axiom) {
             if ((flags & (FLAG_ALC_STRICT | FLAG_SROIQ_STRICT)) != 0) {
                 throw new IllegalArgumentException("The axiom " + axiom + " is not a SROIQ axiom.");
             }
-            final var concept = axiom.getDomain();
-            final var property = axiom.getProperty();
+            var concept = axiom.getDomain();
+            var property = axiom.getProperty();
             return up.refine(concept)
                     .map(newConcept -> df.getOWLObjectPropertyDomainAxiom(property, newConcept));
         }
 
         @Override
-        public Stream<OWLAxiom> visit(final OWLObjectPropertyRangeAxiom axiom) {
+        public Stream<OWLAxiom> visit(OWLObjectPropertyRangeAxiom axiom) {
             if ((flags & (FLAG_ALC_STRICT | FLAG_SROIQ_STRICT)) != 0) {
                 throw new IllegalArgumentException("The axiom " + axiom + " is not a SROIQ axiom.");
             }
-            final var concept = axiom.getRange();
-            final var property = axiom.getProperty();
+            var concept = axiom.getRange();
+            var property = axiom.getProperty();
             return up.refine(concept)
                     .map(newConcept -> df.getOWLObjectPropertyRangeAxiom(property, newConcept));
         }
 
         @Override
-        public Stream<OWLAxiom> visit(final OWLSubObjectPropertyOfAxiom axiom) {
+        public Stream<OWLAxiom> visit(OWLSubObjectPropertyOfAxiom axiom) {
             if ((flags & FLAG_ALC_STRICT) != 0) {
                 throw new IllegalArgumentException("The axiom " + axiom + " is not an ALC axiom.");
             }
@@ -161,11 +161,11 @@ public abstract class AxiomRefinement implements AutoCloseable {
         }
 
         @Override
-        public Stream<OWLAxiom> visit(final OWLSubPropertyChainOfAxiom axiom) {
+        public Stream<OWLAxiom> visit(OWLSubPropertyChainOfAxiom axiom) {
             if ((flags & FLAG_ALC_STRICT) != 0) {
                 throw new IllegalArgumentException("The axiom " + axiom + " is not an ALC axiom.");
             }
-            final var chain = axiom.getPropertyChain();
+            var chain = axiom.getPropertyChain();
             return Stream.concat(Stream.of(noopAxiom()),
                     IntStream.range(0, chain.size()).mapToObj(i -> i)
                             .flatMap(i -> down.refine(chain.get(i))
@@ -175,13 +175,13 @@ public abstract class AxiomRefinement implements AutoCloseable {
         }
 
         @Override
-        public Stream<OWLAxiom> visit(final OWLDisjointObjectPropertiesAxiom axiom) {
+        public Stream<OWLAxiom> visit(OWLDisjointObjectPropertiesAxiom axiom) {
             if ((flags & FLAG_ALC_STRICT) != 0) {
                 throw new IllegalArgumentException("The axiom " + axiom + " is not an ALC axiom.");
             } else if ((flags & FLAG_SROIQ_STRICT) != 0 && axiom.getProperties().size() > 2) {
                 throw new IllegalArgumentException("The axiom " + axiom + " is not a SROIQ axiom.");
             }
-            final var properties = List.copyOf(axiom.getProperties());
+            var properties = List.copyOf(axiom.getProperties());
             return Stream.concat(Stream.of(noopAxiom()),
                     IntStream.range(0, properties.size()).mapToObj(i -> i)
                             .flatMap(i -> down.refine(properties.get(i))
@@ -190,7 +190,7 @@ public abstract class AxiomRefinement implements AutoCloseable {
         }
 
         @Override
-        public Stream<OWLAxiom> doDefault(final OWLAxiom axiom) throws IllegalArgumentException {
+        public Stream<OWLAxiom> doDefault(OWLAxiom axiom) throws IllegalArgumentException {
             if ((flags & (FLAG_ALC_STRICT | FLAG_SROIQ_STRICT)) != 0) {
                 throw new IllegalArgumentException("The axiom " + axiom + " is not a SROIQ axiom.");
             } else {
@@ -199,10 +199,10 @@ public abstract class AxiomRefinement implements AutoCloseable {
         }
     }
 
-    private final Visitor visitor;
-    private final Covers covers;
+    private Visitor visitor;
+    private Covers covers;
 
-    protected AxiomRefinement(final Visitor visitor, final Covers covers) {
+    protected AxiomRefinement(Visitor visitor, Covers covers) {
         this.visitor = visitor;
         this.covers = covers;
     }
@@ -215,7 +215,7 @@ public abstract class AxiomRefinement implements AutoCloseable {
      *            The axiom for which we want to find weaker/stronger axioms.
      * @return A stream of axioms that are all weaker/stronger than {@code axiom}.
      */
-    public Stream<OWLAxiom> refineAxioms(final OWLAxiom axiom) {
+    public Stream<OWLAxiom> refineAxioms(OWLAxiom axiom) {
         return axiom.accept(visitor).distinct();
     }
 

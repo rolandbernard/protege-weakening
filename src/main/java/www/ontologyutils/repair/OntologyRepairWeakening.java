@@ -27,17 +27,17 @@ public class OntologyRepairWeakening extends OntologyRepair {
         RANDOM, NOT_IN_SOME_MCS, NOT_IN_LARGEST_MCS, IN_LEAST_MCS, IN_SOME_MUS, IN_ONE_MUS, NOT_IN_ONE_MCS
     }
 
-    private final RefOntologyStrategy refOntologySource;
-    private final BadAxiomStrategy badAxiomSource;
+    private RefOntologyStrategy refOntologySource;
+    private BadAxiomStrategy badAxiomSource;
 
-    public OntologyRepairWeakening(final Predicate<Ontology> isRepaired, final RefOntologyStrategy refOntologySource,
-            final BadAxiomStrategy badAxiomSource) {
+    public OntologyRepairWeakening(Predicate<Ontology> isRepaired, RefOntologyStrategy refOntologySource,
+            BadAxiomStrategy badAxiomSource) {
         super(isRepaired);
         this.refOntologySource = refOntologySource;
         this.badAxiomSource = badAxiomSource;
     }
 
-    public OntologyRepairWeakening(final Predicate<Ontology> isRepaired) {
+    public OntologyRepairWeakening(Predicate<Ontology> isRepaired) {
         this(isRepaired, RefOntologyStrategy.SOME_MCS, BadAxiomStrategy.IN_SOME_MUS);
     }
 
@@ -61,7 +61,7 @@ public class OntologyRepairWeakening extends OntologyRepair {
      * @return An instance of {@code OntologyRepairWeakening} that tries to remove
      *         all {@code axioms} from being entailed by the ontology.
      */
-    public static OntologyRepair forRemovingEntailments(final Collection<? extends OWLAxiom> axioms) {
+    public static OntologyRepair forRemovingEntailments(Collection<? extends OWLAxiom> axioms) {
         return new OntologyRepairWeakening(o -> axioms.stream().allMatch(axiom -> !o.isEntailed(axiom)));
     }
 
@@ -69,7 +69,7 @@ public class OntologyRepairWeakening extends OntologyRepair {
      * @return An instance of {@code OntologyRepairWeakening} that tries to make
      *         {@code concept} satisfiable.
      */
-    public static OntologyRepair forConceptSatisfiability(final OWLClassExpression concept) {
+    public static OntologyRepair forConceptSatisfiability(OWLClassExpression concept) {
         return new OntologyRepairWeakening(o -> o.isSatisfiable(concept));
     }
 
@@ -78,7 +78,7 @@ public class OntologyRepairWeakening extends OntologyRepair {
      * @return The set of axioms to include in the reference ontology to use for
      *         repairs.
      */
-    public Set<OWLAxiom> getRefAxioms(final Ontology ontology) {
+    public Set<OWLAxiom> getRefAxioms(Ontology ontology) {
         switch (refOntologySource) {
             case INTERSECTION_OF_MCS: {
                 return mcsPeekInfo(false, ontology.maximalConsistentSubsets(isRepaired)).reduce((a, b) -> {
@@ -110,13 +110,13 @@ public class OntologyRepairWeakening extends OntologyRepair {
      * @return The stream of axioms between which to select the next axiom to
      *         weaken.
      */
-    public Stream<OWLAxiom> findBadAxioms(final Ontology ontology) {
+    public Stream<OWLAxiom> findBadAxioms(Ontology ontology) {
         switch (badAxiomSource) {
             case IN_LEAST_MCS: {
-                final var occurrences = ontology.minimalCorrectionSubsets(isRepaired)
+                var occurrences = ontology.minimalCorrectionSubsets(isRepaired)
                         .flatMap(set -> set.stream())
                         .collect(Collectors.groupingBy(Function.identity(), Collectors.counting()));
-                final var max = occurrences.values().stream().max(Long::compareTo);
+                var max = occurrences.values().stream().max(Long::compareTo);
                 if (max.isEmpty()) {
                     throw new RuntimeException(
                             "Did not find a bad subclass or assertion axiom in "
@@ -145,19 +145,19 @@ public class OntologyRepairWeakening extends OntologyRepair {
     }
 
     @Override
-    public void repair(final Ontology ontology) {
-        final var refAxioms = getRefAxioms(ontology);
+    public void repair(Ontology ontology) {
+        var refAxioms = getRefAxioms(ontology);
         infoMessage("Selected a reference ontology with " + refAxioms.size() + " axioms.");
-        try (final var refOntology = ontology.cloneWith(refAxioms)) {
-            try (final var axiomWeakener = new AxiomWeakener(refOntology, ontology)) {
+        try (var refOntology = ontology.cloneWith(refAxioms)) {
+            try (var axiomWeakener = new AxiomWeakener(refOntology, ontology)) {
                 while (!isRepaired(ontology)) {
-                    final var badAxioms = findBadAxioms(ontology).collect(Collectors.toList());
+                    var badAxioms = findBadAxioms(ontology).collect(Collectors.toList());
                     infoMessage("Found " + badAxioms.size() + " possible bad axioms.");
-                    final var badAxiom = Utils.randomChoice(badAxioms);
+                    var badAxiom = Utils.randomChoice(badAxioms);
                     infoMessage("Selected the bad axiom " + Utils.prettyPrintAxiom(badAxiom) + ".");
-                    final var weakerAxioms = axiomWeakener.weakerAxioms(badAxiom).collect(Collectors.toList());
+                    var weakerAxioms = axiomWeakener.weakerAxioms(badAxiom).collect(Collectors.toList());
                     infoMessage("Found  " + weakerAxioms.size() + " weaker axioms.");
-                    final var weakerAxiom = Utils.randomChoice(weakerAxioms);
+                    var weakerAxiom = Utils.randomChoice(weakerAxioms);
                     infoMessage("Selected the weaker axiom " + Utils.prettyPrintAxiom(weakerAxiom) + ".");
                     ontology.replaceAxiom(badAxiom, weakerAxiom);
                 }

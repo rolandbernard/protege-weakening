@@ -7,17 +7,17 @@ import javax.swing.*;
 import org.protege.editor.core.editorkit.EditorKit;
 
 public class ProgressWindow {
-    private final EditorKit editorKit;
+    private EditorKit editorKit;
     private JProgressBar progressBar = new JProgressBar();
     private JTextArea messages = new JTextArea(10, 30);
     private JButton cancelButton = new JButton("Cancel");
     private JDialog window;
 
-    public ProgressWindow(final EditorKit editorKit) {
+    public ProgressWindow(EditorKit editorKit) {
         this.editorKit = editorKit;
     }
 
-    private void initWindow(final String name) {
+    private void initWindow(String name) {
         JPanel panel = new JPanel(new BorderLayout(5, 5));
         progressBar.setIndeterminate(true);
         panel.add(progressBar, BorderLayout.SOUTH);
@@ -59,14 +59,14 @@ public class ProgressWindow {
         return new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS").format(new java.util.Date());
     }
 
-    public void startProgress(final String name, final Runnable onCancel) {
+    public void startProgress(String name, Runnable onCancel) {
         SwingUtilities.invokeLater(() -> {
             if (window == null) {
                 initWindow(name);
                 window.setLocationRelativeTo(window.getOwner());
                 window.setVisible(true);
                 cancelButton.setEnabled(onCancel != null);
-                for (final var listener : cancelButton.getActionListeners()) {
+                for (var listener : cancelButton.getActionListeners()) {
                     cancelButton.removeActionListener(listener);
                 }
                 if (onCancel != null) {
@@ -76,7 +76,7 @@ public class ProgressWindow {
         });
     }
 
-    public void addMessage(final String msg) {
+    public void addMessage(String msg) {
         SwingUtilities.invokeLater(() -> {
             messages.append("[" + getTimeStamp() + "] " + msg + "\n");
         });

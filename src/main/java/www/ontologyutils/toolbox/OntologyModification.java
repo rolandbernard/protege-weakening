@@ -20,8 +20,8 @@ public interface OntologyModification {
      *            The ontology to modify
      * @return The modified ontology
      */
-    default public Ontology modified(final Ontology ontology) {
-        final var copy = ontology.clone();
+    default public Ontology modified(Ontology ontology) {
+        var copy = ontology.clone();
         apply(copy);
         return copy;
     }

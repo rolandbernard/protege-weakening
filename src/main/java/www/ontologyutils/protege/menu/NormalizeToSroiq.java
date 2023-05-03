@@ -16,7 +16,7 @@ public class NormalizeToSroiq extends MutationAction {
                 JOptionPane.showMessageDialog(getOWLWorkspace(), "Ontology has been normalized");
             });
             return true;
-        } catch (final Exception e) {
+        } catch (Exception e) {
             SwingUtilities.invokeLater(() -> {
                 JOptionPane.showMessageDialog(getOWLWorkspace(), e.getMessage(), "Normalization failed",
                         JOptionPane.ERROR_MESSAGE);

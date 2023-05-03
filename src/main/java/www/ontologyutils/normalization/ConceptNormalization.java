@@ -21,45 +21,45 @@ public class ConceptNormalization implements OntologyModification {
      * Visitor class used for converting the axioms.
      */
     private static class AxiomVisitor extends OWLAxiomVisitorExAdapter<OWLAxiom> {
-        protected final OWLDataFactory df;
-        public final ConceptVisitor visitor;
+        protected OWLDataFactory df;
+        public ConceptVisitor visitor;
 
-        public AxiomVisitor(final ConceptVisitor visitor) {
+        public AxiomVisitor(ConceptVisitor visitor) {
             super(null);
             df = Ontology.getDefaultDataFactory();
             this.visitor = visitor;
         }
 
         @Override
-        public OWLAxiom visit(final OWLSubClassOfAxiom axiom) {
+        public OWLAxiom visit(OWLSubClassOfAxiom axiom) {
             return df.getOWLSubClassOfAxiom(
                     axiom.getSubClass().accept(visitor),
                     axiom.getSuperClass().accept(visitor));
         }
 
         @Override
-        public OWLAxiom visit(final OWLDisjointClassesAxiom axiom) {
+        public OWLAxiom visit(OWLDisjointClassesAxiom axiom) {
             return df.getOWLDisjointClassesAxiom(
                     axiom.getClassExpressions().stream().map(concept -> concept.accept(visitor))
                             .collect(Collectors.toSet()));
         }
 
         @Override
-        public OWLAxiom visit(final OWLObjectPropertyDomainAxiom axiom) {
+        public OWLAxiom visit(OWLObjectPropertyDomainAxiom axiom) {
             return df.getOWLObjectPropertyDomainAxiom(
                     axiom.getProperty(),
                     axiom.getDomain().accept(visitor));
         }
 
         @Override
-        public OWLAxiom visit(final OWLObjectPropertyRangeAxiom axiom) {
+        public OWLAxiom visit(OWLObjectPropertyRangeAxiom axiom) {
             return df.getOWLObjectPropertyRangeAxiom(
                     axiom.getProperty(),
                     axiom.getRange().accept(visitor));
         }
 
         @Override
-        public OWLAxiom visit(final OWLDisjointUnionAxiom axiom) {
+        public OWLAxiom visit(OWLDisjointUnionAxiom axiom) {
             return df.getOWLDisjointUnionAxiom(
                     axiom.getOWLClass(),
                     axiom.getClassExpressions().stream().map(concept -> concept.accept(visitor))
@@ -67,21 +67,21 @@ public class ConceptNormalization implements OntologyModification {
         }
 
         @Override
-        public OWLAxiom visit(final OWLClassAssertionAxiom axiom) {
+        public OWLAxiom visit(OWLClassAssertionAxiom axiom) {
             return df.getOWLClassAssertionAxiom(
                     axiom.getClassExpression().accept(visitor),
                     axiom.getIndividual());
         }
 
         @Override
-        public OWLAxiom visit(final OWLEquivalentClassesAxiom axiom) {
+        public OWLAxiom visit(OWLEquivalentClassesAxiom axiom) {
             return df.getOWLDisjointClassesAxiom(
                     axiom.getClassExpressions().stream().map(concept -> concept.accept(visitor))
                             .collect(Collectors.toSet()));
         }
 
         @Override
-        public OWLAxiom doDefault(final OWLAxiom axiom) {
+        public OWLAxiom doDefault(OWLAxiom axiom) {
             return axiom;
         }
     }
@@ -90,33 +90,33 @@ public class ConceptNormalization implements OntologyModification {
      * Visitor class used for converting the concepts.
      */
     private static class ConceptVisitor extends OWLClassExpressionVisitorExAdapter<OWLClassExpression> {
-        protected final OWLDataFactory df;
-        private final boolean binaryOperators;
+        protected OWLDataFactory df;
+        private boolean binaryOperators;
 
-        private ConceptVisitor(final boolean binaryOperators) {
+        private ConceptVisitor(boolean binaryOperators) {
             super(null);
             df = Ontology.getDefaultDataFactory();
             this.binaryOperators = binaryOperators;
         }
 
         @Override
-        public OWLClassExpression visit(final OWLClass ce) {
+        public OWLClassExpression visit(OWLClass ce) {
             return ce;
         }
 
         @Override
-        public OWLClassExpression visit(final OWLObjectHasSelf ce) {
+        public OWLClassExpression visit(OWLObjectHasSelf ce) {
             return ce;
         }
 
         @Override
-        public OWLClassExpression visit(final OWLObjectOneOf ce) {
+        public OWLClassExpression visit(OWLObjectOneOf ce) {
             return ce;
         }
 
-        private OWLClassExpression binaryOperator(final List<OWLClassExpression> operands,
-                final Function<Stream<OWLClassExpression>, OWLClassExpression> constructor,
-                final Supplier<OWLClassExpression> empty) {
+        private OWLClassExpression binaryOperator(List<OWLClassExpression> operands,
+                Function<Stream<OWLClassExpression>, OWLClassExpression> constructor,
+                Supplier<OWLClassExpression> empty) {
             if (binaryOperators && operands.size() != 2) {
                 if (operands.size() == 0) {
                     return empty.get();
@@ -135,66 +135,66 @@ public class ConceptNormalization implements OntologyModification {
         }
 
         @Override
-        public OWLClassExpression visit(final OWLObjectIntersectionOf ce) {
-            final var operands = ce.getOperandsAsList();
+        public OWLClassExpression visit(OWLObjectIntersectionOf ce) {
+            var operands = ce.getOperandsAsList();
             return binaryOperator(operands, ces -> df.getOWLObjectIntersectionOf(ces.collect(Collectors.toSet())),
                     () -> df.getOWLThing());
         }
 
         @Override
-        public OWLClassExpression visit(final OWLObjectUnionOf ce) {
-            final var operands = ce.getOperandsAsList();
+        public OWLClassExpression visit(OWLObjectUnionOf ce) {
+            var operands = ce.getOperandsAsList();
             return binaryOperator(operands, ces -> df.getOWLObjectUnionOf(ces.collect(Collectors.toSet())),
                     () -> df.getOWLNothing());
         }
 
         @Override
-        public OWLClassExpression visit(final OWLObjectComplementOf ce) {
+        public OWLClassExpression visit(OWLObjectComplementOf ce) {
             return df.getOWLObjectComplementOf(ce.getOperand().accept(this));
         }
 
         @Override
-        public OWLClassExpression visit(final OWLObjectSomeValuesFrom ce) {
+        public OWLClassExpression visit(OWLObjectSomeValuesFrom ce) {
             return df.getOWLObjectSomeValuesFrom(ce.getProperty(), ce.getFiller().accept(this));
         }
 
         @Override
-        public OWLClassExpression visit(final OWLObjectAllValuesFrom ce) {
+        public OWLClassExpression visit(OWLObjectAllValuesFrom ce) {
             return df.getOWLObjectAllValuesFrom(ce.getProperty(), ce.getFiller().accept(this));
         }
 
         @Override
-        public OWLClassExpression visit(final OWLObjectHasValue ce) {
+        public OWLClassExpression visit(OWLObjectHasValue ce) {
             return df.getOWLObjectSomeValuesFrom(ce.getProperty(), df.getOWLObjectOneOf(ce.getFiller()));
         }
 
         @Override
-        public OWLClassExpression visit(final OWLObjectMinCardinality ce) {
+        public OWLClassExpression visit(OWLObjectMinCardinality ce) {
             return df.getOWLObjectMinCardinality(ce.getCardinality(), ce.getProperty(), ce.getFiller().accept(this));
         }
 
         @Override
-        public OWLClassExpression visit(final OWLObjectExactCardinality ce) {
-            final var filler = ce.getFiller().accept(this);
+        public OWLClassExpression visit(OWLObjectExactCardinality ce) {
+            var filler = ce.getFiller().accept(this);
             return df.getOWLObjectIntersectionOf(
                     df.getOWLObjectMinCardinality(ce.getCardinality(), ce.getProperty(), filler),
                     df.getOWLObjectMaxCardinality(ce.getCardinality(), ce.getProperty(), filler));
         }
 
         @Override
-        public OWLClassExpression visit(final OWLObjectMaxCardinality ce) {
+        public OWLClassExpression visit(OWLObjectMaxCardinality ce) {
             return df.getOWLObjectMaxCardinality(ce.getCardinality(), ce.getProperty(), ce.getFiller().accept(this));
         }
 
         @Override
-        public OWLClassExpression doDefault(final OWLClassExpression ce) {
+        public OWLClassExpression doDefault(OWLClassExpression ce) {
             throw new IllegalArgumentException("Normalization does not support concept " + ce);
         }
     }
 
-    private final AxiomVisitor visitor;
+    private AxiomVisitor visitor;
 
-    public ConceptNormalization(final boolean binaryOperators) {
+    public ConceptNormalization(boolean binaryOperators) {
         visitor = new AxiomVisitor(new ConceptVisitor(binaryOperators));
     }
 
@@ -207,7 +207,7 @@ public class ConceptNormalization implements OntologyModification {
      *            The axiom that should be converted.
      * @return A axiom that contains only SROIQ concepts.
      */
-    public OWLAxiom asSroiqAxiom(final OWLAxiom axiom) {
+    public OWLAxiom asSroiqAxiom(OWLAxiom axiom) {
         return axiom.accept(visitor);
     }
 
@@ -216,14 +216,14 @@ public class ConceptNormalization implements OntologyModification {
      *            The concept that should be converted.
      * @return A SROIQ concepts equivalent to {@code concept}.
      */
-    public OWLClassExpression asSroiqConcept(final OWLClassExpression concept) {
+    public OWLClassExpression asSroiqConcept(OWLClassExpression concept) {
         return concept.accept(visitor.visitor);
     }
 
     @Override
-    public void apply(final Ontology ontology) throws IllegalArgumentException {
-        final var axioms = ontology.axioms().collect(Collectors.toList());
-        for (final var axiom : axioms) {
+    public void apply(Ontology ontology) throws IllegalArgumentException {
+        var axioms = ontology.axioms().collect(Collectors.toList());
+        for (var axiom : axioms) {
             ontology.replaceAxiom(axiom, asSroiqAxiom(axiom));
         }
     }
