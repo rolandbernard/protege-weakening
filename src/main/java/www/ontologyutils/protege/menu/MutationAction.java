@@ -9,26 +9,21 @@ import org.protege.editor.owl.ui.action.ProtegeOWLAction;
 
 import www.ontologyutils.toolbox.Ontology;
 
-public abstract class MutationAction extends ProtegeOWLAction {
-    private OWLModelManagerListener listener = event -> {
-        if (event.isType(EventType.ACTIVE_ONTOLOGY_CHANGED)) {
-            updateState();
-        }
-    };
-
-    private void updateState() {
-        setEnabled(getOWLModelManager().isActiveOntologyMutable());
-    }
-
+public abstract class MutationAction extends ProtegeOWLAction implements OWLModelManagerListener {
     @Override
     public void initialise() {
-        getOWLModelManager().addListener(listener);
-        updateState();
+        getOWLModelManager().addListener(this);
+        handleChange(null);
     }
 
     @Override
     public void dispose() {
-        getOWLModelManager().removeListener(listener);
+        getOWLModelManager().removeListener(this);
+    }
+
+    @Override
+    public void handleChange(OWLModelManagerChangeEvent event) {
+        setEnabled(getOWLModelManager().isActiveOntologyMutable());
     }
 
     protected abstract boolean performMutation(Ontology ontology);

@@ -1,7 +1,6 @@
 package www.ontologyutils.protege.progress;
 
 import java.awt.*;
-
 import javax.swing.*;
 
 import org.protege.editor.core.editorkit.EditorKit;
