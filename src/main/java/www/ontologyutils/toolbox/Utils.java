@@ -214,4 +214,16 @@ public final class Utils {
                 .replaceAll("<http.*?#", "").replaceAll(">", "").replaceAll("<", "")
                 .replaceFirst("Annotation(.*?) ", "");
     }
+
+    /**
+     * Utility method that creates an array with the appropriate type.
+     *
+     * @param <T>
+     * @param collection
+     * @return The array with the elements of the collection.
+     */
+    @SuppressWarnings("unchecked")
+    public static <T> T[] toArray(Collection<T> collection) {
+        return (T[]) collection.toArray();
+    }
 }

@@ -41,9 +41,9 @@ public class Covers implements AutoCloseable {
          */
         public Cover cached() {
             return new Cover(
-                    LruCache.wrapStreamFunction(conceptCover),
-                    LruCache.wrapStreamFunction(roleCover),
-                    LruCache.wrapStreamFunction(intCover));
+                    LruCache.wrapStreamFunction(conceptCover, Integer.MAX_VALUE),
+                    LruCache.wrapStreamFunction(roleCover, Integer.MAX_VALUE),
+                    LruCache.wrapStreamFunction(intCover, Integer.MAX_VALUE));
         }
 
         public Stream<OWLClassExpression> apply(OWLClassExpression concept) {
@@ -59,11 +59,13 @@ public class Covers implements AutoCloseable {
         }
     }
 
-    public OWLDataFactory df;
-    public Ontology refOntology;
-    public Set<OWLClassExpression> subConcepts;
-    public Set<OWLObjectProperty> simpleRoles;
-    public OWLReasoner reasoner;
+    private OWLDataFactory df;
+    private Ontology refOntology;
+    private Set<OWLClassExpression> subConcepts;
+    private Set<OWLObjectProperty> simpleRoles;
+    private OWLReasoner reasoner;
+    private PreorderCache<OWLClassExpression> isSubClass;
+    private PreorderCache<OWLObjectPropertyExpression> isSubRole;
 
     /**
      * Creates a new {@code Cover} object for the given reference object.
@@ -74,6 +76,20 @@ public class Covers implements AutoCloseable {
      *            Return only roles that are in this set.
      */
     public Covers(Ontology refOntology, Set<OWLObjectProperty> simpleRoles) {
+        this(refOntology, simpleRoles, false);
+    }
+
+    /**
+     * Creates a new {@code Cover} object for the given reference object.
+     *
+     * @param refOntology
+     *            The ontology used for entailment check.
+     * @param simpleRoles
+     *            Return only roles that are in this set.
+     * @param uncached
+     *            If true, no subclass relation cache will be created.
+     */
+    public Covers(Ontology refOntology, Set<OWLObjectProperty> simpleRoles, boolean uncached) {
         df = Ontology.getDefaultDataFactory();
         this.refOntology = refOntology;
         this.reasoner = refOntology.getOwlReasoner();
@@ -81,20 +97,68 @@ public class Covers implements AutoCloseable {
         this.subConcepts.add(df.getOWLThing());
         this.subConcepts.add(df.getOWLNothing());
         this.simpleRoles = simpleRoles;
+        if (!uncached) {
+            this.isSubClass = new PreorderCache<>();
+            this.isSubClass.setupDomain(subConcepts);
+            this.isSubRole = new PreorderCache<>();
+            this.isSubRole.setupDomain(allSimpleRoles().collect(Collectors.toList()));
+        }
     }
 
     /**
-     * @param subclass
-     * @param superclass
+     * @param subClass
+     * @param superClass
      * @return True iff the reference ontology of this cover entails that
      *         {@code subclass} is a subclass of {@code superclass}.
      */
-    private boolean isSubclass(OWLClassExpression subclass, OWLClassExpression superclass) {
+    private boolean uncachedIsSubClass(OWLClassExpression subClass, OWLClassExpression superClass) {
         if (Thread.interrupted()) {
             throw new CanceledException();
         }
-        var testAxiom = df.getOWLSubClassOfAxiom(subclass, superclass);
+        var testAxiom = df.getOWLSubClassOfAxiom(subClass, superClass);
         return reasoner.isEntailed(testAxiom);
+    }
+
+    /**
+     * @param subClass
+     * @param superClass
+     * @return True iff the reference ontology of this cover entails that
+     *         {@code subclass} is a subclass of {@code superclass}.
+     */
+    private boolean isSubClass(OWLClassExpression subClass, OWLClassExpression superClass) {
+        if (isSubClass != null) {
+            return isSubClass.computeIfAbsent(subClass, superClass, this::uncachedIsSubClass);
+        } else {
+            return uncachedIsSubClass(subClass, superClass);
+        }
+    }
+
+    /**
+     * @param subRole
+     * @param superRole
+     * @return True iff the reference ontology of this cover entails that
+     *         {@code subRole} is subsumed by {@code superRole}.
+     */
+    private boolean uncachedIsSubRole(OWLObjectPropertyExpression subRole, OWLObjectPropertyExpression superRole) {
+        if (Thread.interrupted()) {
+            throw new CanceledException();
+        }
+        var testAxiom = df.getOWLSubObjectPropertyOfAxiom(subRole, superRole);
+        return reasoner.isEntailed(testAxiom);
+    }
+
+    /**
+     * @param subRole
+     * @param superRole
+     * @return True iff the reference ontology of this cover entails that
+     *         {@code subRole} is subsumed by {@code superRole}.
+     */
+    private boolean isSubRole(OWLObjectPropertyExpression subRole, OWLObjectPropertyExpression superRole) {
+        if (isSubRole != null) {
+            return isSubRole.computeIfAbsent(subRole, superRole, this::uncachedIsSubRole);
+        } else {
+            return uncachedIsSubRole(subRole, superRole);
+        }
     }
 
     /**
@@ -106,8 +170,8 @@ public class Covers implements AutoCloseable {
      * @return True iff the reference ontology of this cover entails that
      *         {@code subclass} is a strict subclass of {@code superclass}.
      */
-    private boolean isStrictSubclass(OWLClassExpression subclass, OWLClassExpression superclass) {
-        return isSubclass(subclass, superclass) && !isSubclass(superclass, subclass);
+    private boolean isStrictSubClass(OWLClassExpression subclass, OWLClassExpression superclass) {
+        return isSubClass(subclass, superclass) && !isSubClass(superclass, subclass);
     }
 
     /**
@@ -116,11 +180,23 @@ public class Covers implements AutoCloseable {
      * @return True iff {@code candidate} is in the upward cover of {@code concept}.
      */
     private boolean isInUpCover(OWLClassExpression concept, OWLClassExpression candidate) {
-        if (!subConcepts.contains(candidate) || !isSubclass(concept, candidate)) {
+        if (!subConcepts.contains(candidate) || !isSubClass(concept, candidate)) {
             return false;
+        } else if (isSubClass != null) {
+            return !Stream.concat(
+                    isSubClass.knownStrictPredecessors(candidate)
+                            .filter(other -> subConcepts.contains(other)),
+                    isSubClass.possibleStrictPredecessors(candidate)
+                            .sorted((a, b) -> Integer.compare(isSubClass.getKnownSuccessors(b).size(),
+                                    isSubClass.getKnownSuccessors(a).size()))
+                            .filter(other -> subConcepts.contains(other) && isStrictSubClass(other, candidate)))
+                    .sorted((a, b) -> Integer.compare(isSubClass.getKnownPredecessors(b).size(),
+                            isSubClass.getKnownPredecessors(a).size()))
+                    .collect(Collectors.toList()).stream()
+                    .anyMatch(other -> isStrictSubClass(concept, other));
         } else {
             return !subConcepts.stream()
-                    .anyMatch(other -> isStrictSubclass(concept, other) && isStrictSubclass(other, candidate));
+                    .anyMatch(other -> isStrictSubClass(other, candidate) && isStrictSubClass(concept, other));
         }
     }
 
@@ -140,11 +216,23 @@ public class Covers implements AutoCloseable {
      *         {@code concept}.
      */
     private boolean isInDownCover(OWLClassExpression concept, OWLClassExpression candidate) {
-        if (!subConcepts.contains(candidate) || !isSubclass(candidate, concept)) {
+        if (!subConcepts.contains(candidate) || !isSubClass(candidate, concept)) {
             return false;
+        } else if (isSubClass != null) {
+            return !Stream.concat(
+                    isSubClass.knownStrictSuccessors(candidate)
+                            .filter(other -> subConcepts.contains(other)),
+                    isSubClass.possibleStrictSuccessors(candidate)
+                            .sorted((a, b) -> Integer.compare(isSubClass.getKnownPredecessors(b).size(),
+                                    isSubClass.getKnownPredecessors(a).size()))
+                            .filter(other -> subConcepts.contains(other) && isStrictSubClass(candidate, other)))
+                    .sorted((a, b) -> Integer.compare(isSubClass.getKnownSuccessors(b).size(),
+                            isSubClass.getKnownSuccessors(a).size()))
+                    .collect(Collectors.toList()).stream()
+                    .anyMatch(other -> isStrictSubClass(other, concept));
         } else {
             return !subConcepts.stream()
-                    .anyMatch(other -> isStrictSubclass(candidate, other) && isStrictSubclass(other, concept));
+                    .anyMatch(other -> isStrictSubClass(candidate, other) && isStrictSubClass(other, concept));
         }
     }
 
@@ -162,20 +250,6 @@ public class Covers implements AutoCloseable {
      */
     private Stream<OWLObjectPropertyExpression> allSimpleRoles() {
         return simpleRoles.stream().flatMap(role -> Stream.of(role, role.getInverseProperty()));
-    }
-
-    /**
-     * @param subRole
-     * @param superRole
-     * @return True iff the reference ontology of this cover entails that
-     *         {@code subRole} is subsumed by {@code superRole}.
-     */
-    private boolean isSubRole(OWLObjectPropertyExpression subRole, OWLObjectPropertyExpression superRole) {
-        if (Thread.interrupted()) {
-            throw new CanceledException();
-        }
-        var testAxiom = df.getOWLSubObjectPropertyOfAxiom(subRole, superRole);
-        return reasoner.isEntailed(testAxiom);
     }
 
     /**
@@ -200,9 +274,22 @@ public class Covers implements AutoCloseable {
     private boolean isInUpCover(OWLObjectPropertyExpression role, OWLObjectPropertyExpression candidate) {
         if (!simpleRoles.contains(candidate.getNamedProperty()) || !isSubRole(role, candidate)) {
             return false;
+        } else if (isSubClass != null) {
+            return !Stream.concat(
+                    isSubRole.knownStrictPredecessors(candidate)
+                            .filter(other -> simpleRoles.contains(other.getNamedProperty())),
+                    isSubRole.possibleStrictPredecessors(candidate)
+                            .sorted((a, b) -> Integer.compare(isSubRole.getKnownSuccessors(b).size(),
+                                    isSubRole.getKnownSuccessors(a).size()))
+                            .filter(other -> simpleRoles.contains(other.getNamedProperty())
+                                    && isStrictSubRole(other, candidate)))
+                    .sorted((a, b) -> Integer.compare(isSubRole.getKnownPredecessors(b).size(),
+                            isSubRole.getKnownPredecessors(a).size()))
+                    .collect(Collectors.toList()).stream()
+                    .anyMatch(other -> isStrictSubRole(role, other));
         } else {
             return !allSimpleRoles()
-                    .anyMatch(other -> isStrictSubRole(role, other) && isStrictSubRole(other, candidate));
+                    .anyMatch(other -> isStrictSubRole(other, candidate) && isStrictSubRole(role, other));
         }
     }
 
@@ -223,6 +310,19 @@ public class Covers implements AutoCloseable {
     private boolean isInDownCover(OWLObjectPropertyExpression role, OWLObjectPropertyExpression candidate) {
         if (!simpleRoles.contains(candidate.getNamedProperty()) || !isSubRole(candidate, role)) {
             return false;
+        } else if (isSubClass != null) {
+            return !Stream.concat(
+                    isSubRole.knownStrictSuccessors(candidate)
+                            .filter(other -> simpleRoles.contains(other.getNamedProperty())),
+                    isSubRole.possibleStrictSuccessors(candidate)
+                            .sorted((a, b) -> Integer.compare(isSubRole.getKnownPredecessors(b).size(),
+                                    isSubRole.getKnownPredecessors(a).size()))
+                            .filter(other -> simpleRoles.contains(other.getNamedProperty())
+                                    && isStrictSubRole(candidate, other)))
+                    .sorted((a, b) -> Integer.compare(isSubRole.getKnownSuccessors(b).size(),
+                            isSubRole.getKnownSuccessors(a).size()))
+                    .collect(Collectors.toList()).stream()
+                    .anyMatch(other -> isStrictSubRole(other, role));
         } else {
             return !allSimpleRoles()
                     .anyMatch(other -> isStrictSubRole(candidate, other) && isStrictSubRole(other, role));

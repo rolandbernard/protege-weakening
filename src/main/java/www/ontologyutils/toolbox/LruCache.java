@@ -20,7 +20,7 @@ public class LruCache<K, V> extends LinkedHashMap<K, V> {
      * @param cacheSize
      */
     public LruCache(int cacheSize) {
-        super(cacheSize * 2, 0.75f, true);
+        super(cacheSize != Integer.MAX_VALUE ? cacheSize * 2 : 256, 0.75f, cacheSize != Integer.MAX_VALUE);
         this.cacheSize = cacheSize;
     }
 
@@ -61,6 +61,22 @@ public class LruCache<K, V> extends LinkedHashMap<K, V> {
      * @param <K>
      * @param <V>
      * @param function
+     * @param cacheSize
+     *            The maximum number of entries in the cache.
+     * @return The wrapped function.
+     */
+    public static <K, V> Function<K, Stream<V>> wrapStreamFunction(Function<K, Stream<V>> function, int cacheSize) {
+        var cached = wrapFunction((K input) -> function.apply(input).collect(Collectors.toList()), cacheSize);
+        return input -> cached.apply(input).stream();
+    }
+
+    /**
+     * Because streams can not be cached directly, we provide this utility that
+     * converts the stream to a list, and then back to a stream whenever needed.
+     *
+     * @param <K>
+     * @param <V>
+     * @param function
      * @return The wrapped function.
      */
     public static <K, V> Function<K, Stream<V>> wrapStreamFunction(Function<K, Stream<V>> function) {
@@ -70,6 +86,9 @@ public class LruCache<K, V> extends LinkedHashMap<K, V> {
 
     @Override
     protected boolean removeEldestEntry(Map.Entry<K, V> eldest) {
+        if (cacheSize == Integer.MAX_VALUE) {
+            return false;
+        }
         return size() > cacheSize;
     }
 }
