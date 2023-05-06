@@ -43,6 +43,7 @@ public abstract class MutationAction extends ProtegeOWLAction {
             if (performMutation(ontology)) {
                 SwingUtilities.invokeLater(() -> {
                     ontology.applyChangesTo(owlOntology);
+                    ontology.close();
                 });
             }
         });
