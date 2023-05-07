@@ -9,6 +9,8 @@ import org.protege.editor.owl.model.event.*;
 import org.protege.editor.owl.ui.view.AbstractOWLViewComponent;
 import org.semanticweb.owlapi.model.*;
 
+import www.ontologyutils.protege.list.AxiomWeakeningList;
+
 public class AxiomWeakeningListView extends AbstractOWLViewComponent implements OWLModelManagerListener, OWLOntologyChangeListener {
     private AxiomWeakeningList axiomList;
     private OWLOntologyManager owlOntologyManager;
@@ -37,7 +39,7 @@ public class AxiomWeakeningListView extends AbstractOWLViewComponent implements 
             owlOntologyManager = owlOntology.getOWLOntologyManager();
             owlOntologyManager.addOntologyChangeListener(this);
         }
-        axiomList.setOwlOntology(owlOntology);
+        axiomList.updateAxiomList();
     }
 
     @Override
