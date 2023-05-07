@@ -6,7 +6,7 @@
 
     <extension id="ExampleViewComponent" point="org.protege.editor.core.application.ViewComponent">
         <label value="Axiom List Weakening" />
-        <class value="www.ontologyutils.protege.view.AxiomListWeakeningView" />
+        <class value="www.ontologyutils.protege.view.AxiomWeakeningListView" />
         <headerColor value="@org.protege.ontologycolor" />
         <category value="@org.protege.ontologycategory" />
     </extension>
