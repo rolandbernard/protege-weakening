@@ -1,8 +1,11 @@
 package www.ontologyutils.protege.list;
 
 import java.awt.*;
-import java.util.ArrayList;
+import java.util.*;
 import java.util.List;
+import java.util.function.Function;
+import java.util.stream.Collectors;
+
 import javax.swing.*;
 
 import org.protege.editor.core.ui.list.MListButton;
@@ -12,6 +15,7 @@ import org.protege.editor.owl.ui.renderer.*;
 import org.semanticweb.owlapi.model.*;
 
 import www.ontologyutils.protege.button.*;
+import www.ontologyutils.toolbox.Ontology;
 
 public class AxiomWeakeningList extends OWLAxiomList implements LinkedObjectComponent {
     private OWLEditorKit editorKit;
@@ -34,10 +38,22 @@ public class AxiomWeakeningList extends OWLAxiomList implements LinkedObjectComp
         return buttons;
     }
 
+    public Map<OWLAxiom, Long> getAxiomCounts(OWLOntology owlOntology) {
+        var reasonerFactory = editorKit.getOWLModelManager().getOWLReasonerManager()
+                .getCurrentReasonerFactory().getReasonerFactory();
+        try (var ontology = Ontology.withAxiomsFrom(owlOntology, reasonerFactory)) {
+            return ontology.someMinimalUnsatisfiableSubsets(Ontology::isConsistent)
+                    .flatMap(set -> set.stream())
+                    .collect(Collectors.groupingBy(Function.identity(), Collectors.counting()));
+        }
+    }
+
     @SuppressWarnings("unchecked")
     public void updateAxiomList() {
         var owlOntology = editorKit.getOWLModelManager().getActiveOntology();
+        var occurrences = getAxiomCounts(owlOntology);
         var axiomItems = owlOntology.getLogicalAxioms().stream()
+                .sorted((a, b) -> Long.compare(occurrences.getOrDefault(b, 0L), occurrences.getOrDefault(a, 0L)))
                 .map(axiom -> new AxiomListItem(axiom, owlOntology))
                 .toArray(n -> new AxiomListItem[n]);
         setListData(axiomItems);
