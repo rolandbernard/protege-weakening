@@ -11,7 +11,8 @@ import org.semanticweb.owlapi.model.*;
 
 import www.ontologyutils.protege.list.AxiomWeakeningList;
 
-public class AxiomWeakeningListView extends AbstractOWLViewComponent implements OWLModelManagerListener, OWLOntologyChangeListener {
+public class AxiomWeakeningListView extends AbstractOWLViewComponent
+        implements OWLModelManagerListener, OWLOntologyChangeListener {
     private AxiomWeakeningList axiomList;
     private OWLOntologyManager owlOntologyManager;
 

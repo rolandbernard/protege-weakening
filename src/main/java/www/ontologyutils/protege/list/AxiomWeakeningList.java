@@ -11,7 +11,7 @@ import org.protege.editor.owl.ui.list.OWLAxiomList;
 import org.protege.editor.owl.ui.renderer.*;
 import org.semanticweb.owlapi.model.*;
 
-import www.ontologyutils.protege.button.WeakenAxiomButton;
+import www.ontologyutils.protege.button.*;
 
 public class AxiomWeakeningList extends OWLAxiomList implements LinkedObjectComponent {
     private OWLEditorKit editorKit;
@@ -29,6 +29,7 @@ public class AxiomWeakeningList extends OWLAxiomList implements LinkedObjectComp
     protected List<MListButton> getButtons(Object value) {
         var buttons = new ArrayList<MListButton>();
         buttons.addAll(super.getButtons(value));
+        buttons.add(new StrengthenAxiomButton((AxiomListItem) value, editorKit));
         buttons.add(new WeakenAxiomButton((AxiomListItem) value, editorKit));
         return buttons;
     }
