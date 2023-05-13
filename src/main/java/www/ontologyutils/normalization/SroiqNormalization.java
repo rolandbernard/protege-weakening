@@ -14,6 +14,12 @@ public class SroiqNormalization implements OntologyModification {
     private RBoxNormalization rBoxNormalization;
     private ConceptNormalization conceptNormalization;
 
+    /**
+     * @param binaryOperators
+     *            Whether to normalize to binary intersection and union.
+     * @param fullEquality
+     *            Whether to use full pairwise equality during normalization.
+     */
     public SroiqNormalization(boolean binaryOperators, boolean fullEquality) {
         tBoxNormalization = new TBoxNormalization();
         aBoxNormalization = new ABoxNormalization(fullEquality);
@@ -21,6 +27,9 @@ public class SroiqNormalization implements OntologyModification {
         conceptNormalization = new ConceptNormalization(binaryOperators);
     }
 
+    /**
+     * Create a new SROIQ normalization object.
+     */
     public SroiqNormalization() {
         this(false, false);
     }

@@ -10,7 +10,7 @@ import org.semanticweb.owlapi.model.*;
  * fit anywhere else.
  */
 public final class Utils {
-    private static ThreadLocal<Random> random = new ThreadLocal<>() {
+    private static final ThreadLocal<Random> random = new ThreadLocal<>() {
         protected Random initialValue() {
             return new Random();
         };
@@ -42,6 +42,7 @@ public final class Utils {
      * Set the seed for the currently used random instance to {@code seed}.
      *
      * @param seed
+     *            The value with which to seed the random number generator.
      */
     public static void randomSeed(long seed) {
         random.get().setSeed(seed);
@@ -51,11 +52,13 @@ public final class Utils {
      * Select a random from a finite stream uniformly at random.
      *
      * @param <T>
+     *            The element type of the stream.
      * @param stream
+     *            The stream containing the elements to select from.
      * @return A random element in {@code stream}.
      */
     public static <T> T randomChoice(Stream<? extends T> stream) {
-        var flatList = stream.collect(Collectors.toList());
+        var flatList = Utils.toList(stream);
         int randomIdx = random.get().nextInt(flatList.size());
         return flatList.get(randomIdx);
     }
@@ -64,7 +67,9 @@ public final class Utils {
      * Select a random element for the collection uniformly ar random.
      *
      * @param <T>
+     *            The element type of the collection.
      * @param collection
+     *            The collection from which to select a random element.
      * @return A random element in {@code collection}.
      */
     public static <T> T randomChoice(Collection<? extends T> collection) {
@@ -75,11 +80,13 @@ public final class Utils {
      * Return a random order from the finite stream.
      *
      * @param <T>
+     *            The element type of the stream.
      * @param stream
+     *            The stream we want to reorder.
      * @return A random order of {@code stream}.
      */
     public static <T> List<T> randomOrder(Stream<? extends T> stream) {
-        var flatList = stream.map(t -> (T) t).collect(Collectors.toList());
+        var flatList = Utils.toList(stream.map(t -> (T) t));
         Collections.shuffle(flatList, random.get());
         return flatList;
     }
@@ -88,7 +95,9 @@ public final class Utils {
      * Return a random order if the collection.
      *
      * @param <T>
+     *            The element type of the collection.
      * @param collection
+     *            The collection we want to reorder.
      * @return A random order of {@code collection}.
      */
     public static <T> List<T> randomOrder(Collection<? extends T> collection) {
@@ -97,9 +106,13 @@ public final class Utils {
 
     /**
      * @param <T>
+     *            The element type of the list.
      * @param list
+     *            The list we want to manipulate.
      * @param idx
+     *            The index to change.
      * @param value
+     *            The new value to place at the index.
      * @return A stream that contains all elements in {@code list} but the one at
      *         {@code idx} which is replace by {@code value}.
      */
@@ -110,8 +123,11 @@ public final class Utils {
 
     /**
      * @param <T>
+     *            The element type of the list.
      * @param list
+     *            Tne list we want to manipulate.
      * @param idx
+     *            The index of the element to remove.
      * @return A stream that contains all elements in {@code list} except the one at
      *         {@code idx}.
      */
@@ -124,7 +140,9 @@ public final class Utils {
      * only able to handle up to 63 elements in {@code set}.
      *
      * @param <T>
+     *            The element type of the list.
      * @param set
+     *            The set for which to compute the power set.
      * @return The power set of {@code set}
      * @throws IllegalArgumentException
      *             If {@code set} contains more than 63
@@ -154,7 +172,9 @@ public final class Utils {
      * same as B and A.
      *
      * @param c1
+     *            The first concept.
      * @param c2
+     *            The second concept.
      * @return true when {@code c1} and {@code c2} are the same concept at the
      *         syntactic level.
      */
@@ -177,8 +197,7 @@ public final class Utils {
                 case OBJECT_INTERSECTION_OF: {
                     var u1 = (OWLNaryBooleanClassExpression) c1;
                     var u2 = (OWLNaryBooleanClassExpression) c2;
-                    return u1.getOperands().stream()
-                            .allMatch(d1 -> u2.getOperands().stream().anyMatch(d2 -> sameConcept(d1, d2)));
+                    return u1.getOperands().stream().allMatch(d1 -> u2.getOperands().stream().anyMatch(d2 -> sameConcept(d1, d2)));
                 }
                 case OBJECT_MIN_CARDINALITY:
                 case OBJECT_MAX_CARDINALITY:
@@ -198,7 +217,8 @@ public final class Utils {
 
     /**
      * @param owlString
-     * @return
+     *            The string we want to clean up.
+     * @return A cleaned up version of {@code owlString}.
      */
     public static String pretty(String owlString) {
         return owlString.replaceAll("<http.*?#", "").replaceAll(">", "").replaceAll("<", "");
@@ -206,6 +226,7 @@ public final class Utils {
 
     /**
      * @param ax
+     *            The axiom to convert.
      * @return a pretty string representing {@code ax}, without its annotations and
      *         without namespaces.
      */
@@ -219,11 +240,35 @@ public final class Utils {
      * Utility method that creates an array with the appropriate type.
      *
      * @param <T>
+     *            The element type of the collection.
      * @param collection
+     *            The collection to convert.
      * @return The array with the elements of the collection.
      */
     @SuppressWarnings("unchecked")
     public static <T> T[] toArray(Collection<T> collection) {
         return (T[]) collection.toArray();
+    }
+
+    /**
+     * @param <T>
+     *            The element type of the stream.
+     * @param stream
+     *            The stream to convert.
+     * @return The list with the elements of the stream.
+     */
+    public static <T> List<T> toList(Stream<? extends T> stream) {
+        return stream.collect(Collectors.toList());
+    }
+
+    /**
+     * @param <T>
+     *            The element type of the stream.
+     * @param stream
+     *            The stream to convert.
+     * @return The set with the elements of the stream.
+     */
+    public static <T> Set<T> toSet(Stream<? extends T> stream) {
+        return stream.collect(Collectors.toSet());
     }
 }

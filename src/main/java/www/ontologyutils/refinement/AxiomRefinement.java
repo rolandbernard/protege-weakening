@@ -1,6 +1,5 @@
 package www.ontologyutils.refinement;
 
-import java.util.List;
 import java.util.Set;
 import java.util.stream.*;
 
@@ -23,20 +22,62 @@ import www.ontologyutils.toolbox.*;
  * Toquard, N. (2020). Towards even more irresistible axiom weakening.
  */
 public abstract class AxiomRefinement implements AutoCloseable {
+    /**
+     * Default, do not apply any strict constraints.
+     */
     public static final int FLAG_NON_STRICT = 0;
+    /**
+     * Accept and produce only axioms with concepts in negation normal form.
+     */
     public static final int FLAG_NNF_STRICT = 1 << 0;
+    /**
+     * Accept only axioms that have direct equivalents in ALC.
+     */
     public static final int FLAG_ALC_STRICT = 1 << 1;
+    /**
+     * Accept only axioms that have direct equivalents in SROIQ.
+     */
     public static final int FLAG_SROIQ_STRICT = 1 << 2;
 
+    /**
+     * Visitor implementing the actual weakening.
+     */
     protected static abstract class Visitor extends OWLAxiomVisitorExAdapter<Stream<OWLAxiom>> {
+        /**
+         * OWL data factory to use for the creation of new axioms.
+         */
         protected OWLDataFactory df;
+        /**
+         * The refinement operator to use for "upward" refinement.
+         */
         protected RefinementOperator up;
+        /**
+         * The refinement operator to use for "downward" refinement.
+         */
         protected RefinementOperator down;
-        protected Set<OWLObjectProperty> simpleRoles;
+        /**
+         * The set of all roles that is guaranteed to be simple and whose simplicity
+         * must be
+         */
+        protected Set<OWLObjectPropertyExpression> simpleRoles;
+        /**
+         * The flags.
+         */
         protected int flags;
 
+        /**
+         * @param up
+         *            The "upward"-refinement.
+         * @param down
+         *            The "downward"-refinement.
+         * @param simpleRoles
+         *            The set of simple roles. These are used for deciding whether it is
+         *            safe to refine a role inclusion axiom.
+         * @param flags
+         *            Flags that can be used to make the refinement ore strict.
+         */
         public Visitor(RefinementOperator up, RefinementOperator down,
-                Set<OWLObjectProperty> simpleRoles, int flags) {
+                Set<OWLObjectPropertyExpression> simpleRoles, int flags) {
             super(null);
             df = Ontology.getDefaultDataFactory();
             this.up = up;
@@ -45,6 +86,10 @@ public abstract class AxiomRefinement implements AutoCloseable {
             this.flags = flags;
         }
 
+        /**
+         * @return The axiom that should be used as a last resort, in case no other
+         *         weakening/strengthening is available.
+         */
         protected abstract OWLAxiom noopAxiom();
 
         @Override
@@ -118,8 +163,7 @@ public abstract class AxiomRefinement implements AutoCloseable {
             var concepts = axiom.getClassExpressionsAsList();
             return IntStream.range(0, concepts.size()).mapToObj(i -> i)
                     .flatMap(i -> down.refine(concepts.get(i))
-                            .map(refined -> df.getOWLDisjointClassesAxiom(
-                                    Utils.replaceInList(concepts, i, refined).collect(Collectors.toSet()))));
+                            .map(refined -> df.getOWLDisjointClassesAxiom(Utils.toSet(Utils.replaceInList(concepts, i, refined)))));
         }
 
         @Override
@@ -153,7 +197,7 @@ public abstract class AxiomRefinement implements AutoCloseable {
                     Stream.concat(
                             down.refine(axiom.getSubProperty())
                                     .map(role -> df.getOWLSubObjectPropertyOfAxiom(role, axiom.getSuperProperty())),
-                            simpleRoles.contains(axiom.getSubProperty().getNamedProperty())
+                            simpleRoles.contains(axiom.getSubProperty())
                                     ? up.refine(axiom.getSuperProperty())
                                             .map(role -> df.getOWLSubObjectPropertyOfAxiom(axiom.getSubProperty(),
                                                     role))
@@ -170,7 +214,7 @@ public abstract class AxiomRefinement implements AutoCloseable {
                     IntStream.range(0, chain.size()).mapToObj(i -> i)
                             .flatMap(i -> down.refine(chain.get(i))
                                     .map(role -> df.getOWLSubPropertyChainOfAxiom(
-                                            Utils.replaceInList(chain, i, role).collect(Collectors.toList()),
+                                            Utils.toList(Utils.replaceInList(chain, i, role)),
                                             axiom.getSuperProperty()))));
         }
 
@@ -181,20 +225,21 @@ public abstract class AxiomRefinement implements AutoCloseable {
             } else if ((flags & FLAG_SROIQ_STRICT) != 0 && axiom.getProperties().size() > 2) {
                 throw new IllegalArgumentException("The axiom " + axiom + " is not a SROIQ axiom.");
             }
-            var properties = List.copyOf(axiom.getProperties());
+            var properties = Utils.toList(axiom.getProperties().stream());
             return Stream.concat(Stream.of(noopAxiom()),
                     IntStream.range(0, properties.size()).mapToObj(i -> i)
                             .flatMap(i -> down.refine(properties.get(i))
                                     .map(role -> df.getOWLDisjointObjectPropertiesAxiom(
-                                            Utils.replaceInList(properties, i, role).collect(Collectors.toSet())))));
+                                            Utils.toSet(Utils.replaceInList(properties, i, role))))));
         }
 
         @Override
-        public Stream<OWLAxiom> doDefault(OWLAxiom axiom) throws IllegalArgumentException {
+        public Stream<OWLAxiom> doDefault(OWLAxiom axiom) {
+            var ax = (OWLAxiom) axiom;
             if ((flags & (FLAG_ALC_STRICT | FLAG_SROIQ_STRICT)) != 0) {
-                throw new IllegalArgumentException("The axiom " + axiom + " is not a SROIQ axiom.");
+                throw new IllegalArgumentException("The axiom " + ax + " is not a SROIQ axiom.");
             } else {
-                return Stream.of(axiom, noopAxiom());
+                return Stream.of(ax, noopAxiom());
             }
         }
     }
@@ -202,6 +247,14 @@ public abstract class AxiomRefinement implements AutoCloseable {
     private Visitor visitor;
     private Covers covers;
 
+    /**
+     * @param visitor
+     *            The visitor used by this operator.
+     * @param covers
+     *            The covers used by this operator. Ownership of the covers object
+     *            is transferred to this object, and it will be closed when the new
+     *            axiom refinement object is closed.
+     */
     protected AxiomRefinement(Visitor visitor, Covers covers) {
         this.visitor = visitor;
         this.covers = covers;

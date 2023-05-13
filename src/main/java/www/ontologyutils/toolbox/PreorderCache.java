@@ -8,7 +8,7 @@ import java.util.stream.Stream;
  * Implements a simple cache for a preorder, i.e., a reflexive and transitive
  * relation.
  *
- * Loosely inspired by the approach presented in Shearer, R., & Horrocks, I.
+ * Loosely inspired by the approach presented in Shearer, R., &amp; Horrocks, I.
  * (2009). Exploiting partial information in taxonomy construction. In The
  * Semantic Web-ISWC 2009: 8th International Semantic Web Conference, ISWC 2009,
  * Chantilly, VA, USA, October 25-29, 2009. Proceedings 8 (pp. 569-584).
@@ -44,7 +44,13 @@ public class PreorderCache<T> {
         }
     }
 
-    private void removePossibleSuccessors(T pred, T succ) {
+    /**
+     * @param pred
+     *            The element known to not be a predecessor of {@code succ}.
+     * @param succ
+     *            The element known to not be a successor of {@code pred}.
+     */
+    protected void removePossibleSuccessors(T pred, T succ) {
         if (possibleSuccessors.get(pred).remove(succ)) {
             possiblePredecessors.get(succ).remove(pred);
             for (var pred2 : Utils.toArray(knownSuccessors.get(pred))) {
@@ -57,7 +63,13 @@ public class PreorderCache<T> {
         }
     }
 
-    private void addKnownSuccessors(T pred, T succ) {
+    /**
+     * @param pred
+     *            The element known to be a predecessor of {@code succ}.
+     * @param succ
+     *            The element known to be a successor of {@code pred}.
+     */
+    protected void addKnownSuccessors(T pred, T succ) {
         if (knownSuccessors.get(pred).add(succ)) {
             knownPredecessors.get(succ).add(pred);
             possibleSuccessors.get(pred).remove(succ);
@@ -104,6 +116,7 @@ public class PreorderCache<T> {
      * possible predecessors will not contain these unseen elements.
      *
      * @param domain
+     *            The collection of all elements for which to setup the cache.
      */
     public void setupDomain(Collection<T> domain) {
         for (var elem : domain) {
@@ -132,6 +145,7 @@ public class PreorderCache<T> {
 
     /**
      * @param pred
+     *            The element for which to find successors.
      * @return A stream of all known successors of {@code pred}.
      */
     public Set<T> getKnownSuccessors(T pred) {
@@ -141,6 +155,7 @@ public class PreorderCache<T> {
 
     /**
      * @param pred
+     *            The element for which to find successors.
      * @return A stream of all possible, but not known, successors of {@code pred}.
      */
     public Set<T> getPossibleSuccessors(T pred) {
@@ -150,6 +165,7 @@ public class PreorderCache<T> {
 
     /**
      * @param succ
+     *            The element for which to get predecessors.
      * @return A stream of all known predecessors of {@code succ}.
      */
     public Set<T> getKnownPredecessors(T succ) {
@@ -159,6 +175,7 @@ public class PreorderCache<T> {
 
     /**
      * @param succ
+     *            The element for which to get predecessors.
      * @return A stream of all possible, but not known, predecessors of
      *         {@code succ}.
      */
@@ -169,6 +186,7 @@ public class PreorderCache<T> {
 
     /**
      * @param pred
+     *            The element for which to find successors.
      * @return A stream of all known successors of {@code pred}.
      */
     public Stream<T> knownStrictSuccessors(T pred) {
@@ -180,6 +198,7 @@ public class PreorderCache<T> {
 
     /**
      * @param pred
+     *            The element for which to find successors.
      * @return A stream of all possible, but not known, successors of {@code pred}.
      */
     public Stream<T> possibleStrictSuccessors(T pred) {
@@ -194,6 +213,7 @@ public class PreorderCache<T> {
 
     /**
      * @param succ
+     *            The element for which to find predecessors.
      * @return A stream of all known predecessors of {@code succ}.
      */
     public Stream<T> knownStrictPredecessors(T succ) {
@@ -205,6 +225,7 @@ public class PreorderCache<T> {
 
     /**
      * @param succ
+     *            The element for which to find predecessors.
      * @return A stream of all possible, but not known, predecessors of
      *         {@code succ}.
      */
@@ -219,25 +240,70 @@ public class PreorderCache<T> {
     }
 
     /**
+     * @param pred
+     *            The possible predecessor.
+     * @param succ
+     *            The possible successor.
+     * @return True if {@code pred} is a predecessor of {@code succ}.
+     */
+    public boolean isKnownSuccessor(T pred, T succ) {
+        var set = knownSuccessors.get(pred);
+        if (set == null) {
+            return false;
+        }
+        return set.contains(succ);
+    }
+
+    /**
+     * @param pred
+     *            The possible predecessor.
+     * @param succ
+     *            The possible successor.
+     * @return False if {@code pred} is not a predecessor of {@code succ}.
+     */
+    public boolean isPossibleSuccessor(T pred, T succ) {
+        var set = possibleSuccessors.get(pred);
+        if (set == null) {
+            return true;
+        }
+        return set.contains(succ);
+    }
+
+    /**
+     * @param pred
+     *            The possible predecessor.
+     * @param succ
+     *            The possible successor.
+     * @param order
+     *            The predicate to test with.
+     * @return True if {@code pred} is a predecessor of {@code succ}.
+     */
+    protected boolean compute(T pred, T succ, BiPredicate<T, T> order) {
+        return order.test(pred, succ);
+    }
+
+    /**
      * Get whether the relation contains the pair ({@code pred}, {@code succ}). If
      * the result is already known form the cached values it is returned
      * immediately, other wise {@code order} is called to find the result.
      *
      * @param pred
+     *            The possible predecessor of {@code succ}.
      * @param succ
+     *            The possible successor of {@code pred}.
      * @param order
      *            A function defining the relation to cache.
      * @return True iff the relation contains a connection from {@code pred} to
      *         {@code succ}.
      */
-    public boolean computeIfAbsent(T pred, T succ, BiPredicate<T, T> order) {
+    public synchronized boolean computeIfAbsent(T pred, T succ, BiPredicate<T, T> order) {
         assureExistence(pred);
         assureExistence(succ);
-        if (knownSuccessors.get(pred).contains(succ)) {
+        if (isKnownSuccessor(pred, succ)) {
             return true;
-        } else if (!possibleSuccessors.get(pred).contains(succ)) {
+        } else if (!isPossibleSuccessor(pred, succ)) {
             return false;
-        } else if (order.test(pred, succ)) {
+        } else if (compute(pred, succ, order)) {
             addKnownSuccessors(pred, succ);
             return true;
         } else {
@@ -247,35 +313,12 @@ public class PreorderCache<T> {
     }
 
     /**
-     * Get whether the relation contains the pair ({@code pred}, {@code succ}). If
-     * the result is already known form the cached values it is returned
-     * immediately, other wise {@code order} is called to find the result. Unlike
-     * {@code computeIfAbsent}, this method will not cache the result of the
-     * computation.
-     *
-     * @param pred
-     * @param succ
-     * @param order
-     *            A function defining the relation to cache.
-     * @return True iff the relation contains a connection from {@code pred} to
-     *         {@code succ}.
-     */
-    public boolean computeIfAbsentNoCache(T pred, T succ, BiPredicate<T, T> order) {
-        if (knownSuccessors.containsKey(pred) && knownSuccessors.get(pred).contains(succ)) {
-            return true;
-        } else if (possibleSuccessors.containsKey(pred) && !possibleSuccessors.get(pred).contains(succ)) {
-            return false;
-        } else {
-            return order.test(pred, succ);
-        }
-    }
-
-    /**
      * Wrap the given preorder {@code preorder} using a {@code PreorderCache}.
      *
-     * @param <K>
-     * @param <V>
+     * @param <T>
+     *            The domain over which the preorder is defined.
      * @param preorder
+     *            The preorder that should be wrapped.
      * @return The wrapped preorder.
      */
     public static <T> BiPredicate<T, T> wrapPreorder(BiPredicate<T, T> preorder) {

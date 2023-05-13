@@ -14,17 +14,41 @@ import www.ontologyutils.toolbox.*;
  * of axioms in the input ontology.
  */
 public class OntologyRepairRandomMcs extends OntologyRepair {
+    /**
+     * Possible strategies for computing maximal consistent subsets.
+     */
     public static enum McsComputationStrategy {
-        ALL_MCS, SOME_MCS, ONE_MCS,
+        /**
+         * Compute all maximal consistent subsets.
+         */
+        ALL_MCS,
+        /**
+         * Compute some (but not necessarily all) maximal consistent subsets.
+         */
+        SOME_MCS,
+        /**
+         * Compute one maximal consistent subset.
+         */
+        ONE_MCS,
     }
 
     private McsComputationStrategy mcsComputation;
 
+    /**
+     * @param isRepaired
+     *            The predicate testing whether an ontology is repaired.
+     * @param mcs
+     *            The strategy for computing maximal consistent subsets.
+     */
     public OntologyRepairRandomMcs(Predicate<Ontology> isRepaired, McsComputationStrategy mcs) {
         super(isRepaired);
         this.mcsComputation = mcs;
     }
 
+    /**
+     * @param isRepaired
+     *            The predicate testing whether an ontology is repaired.
+     */
     public OntologyRepairRandomMcs(Predicate<Ontology> isRepaired) {
         this(isRepaired, McsComputationStrategy.SOME_MCS);
     }
@@ -46,6 +70,8 @@ public class OntologyRepairRandomMcs extends OntologyRepair {
     }
 
     /**
+     * @param axioms
+     *            The axioms that we don't want to be entailed.
      * @return An instance of {@code OntologyRepairRandomMcs} that tries to remove
      *         all {@code axioms} from being entailed by the ontology.
      */
@@ -54,6 +80,8 @@ public class OntologyRepairRandomMcs extends OntologyRepair {
     }
 
     /**
+     * @param concept
+     *            The concept that we want to be satisfiable.
      * @return An instance of {@code OntologyRepairRandomMcs} that tries to make
      *         {@code concept} satisfiable.
      */

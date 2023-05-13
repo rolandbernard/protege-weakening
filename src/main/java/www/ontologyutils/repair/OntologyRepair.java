@@ -15,7 +15,13 @@ import www.ontologyutils.toolbox.*;
  * fewer consequences will also satisfy the predicate, i.e. it must be monotone.
  */
 public abstract class OntologyRepair implements OntologyModification {
+    /**
+     * Monotone predicate that tests if an ontology is repaired.
+     */
     protected Predicate<Ontology> isRepaired;
+    /**
+     * A callback that should be called if we have info messages.
+     */
     protected Consumer<String> infoCallback;
 
     /**
@@ -26,6 +32,13 @@ public abstract class OntologyRepair implements OntologyModification {
         this.isRepaired = isRepaired;
     }
 
+    /**
+     * Applies the repair to the given ontology. After this method returns, the
+     * ontology must be repaired.
+     *
+     * @param ontology
+     *            The ontology to repair.
+     */
     public abstract void repair(Ontology ontology);
 
     /**
@@ -39,16 +52,32 @@ public abstract class OntologyRepair implements OntologyModification {
         return isRepaired.test(ontology);
     }
 
+    /**
+     * @param infoCallback
+     *            The callback to call when we have a new progress message.
+     */
     public void setInfoCallback(Consumer<String> infoCallback) {
         this.infoCallback = infoCallback;
     }
 
+    /**
+     * @param message
+     *            The new info message to send.
+     */
     protected void infoMessage(String message) {
         if (infoCallback != null) {
             infoCallback.accept(message);
         }
     }
 
+    /**
+     * @param minimal
+     *            Whether we found a minimal or maximal subset.
+     * @param stream
+     *            The stream containing the subsets for which to create info
+     *            messages.
+     * @return A stream equivalent to {@code stream}.
+     */
     protected Stream<Set<OWLAxiom>> mcsPeekInfo(boolean minimal, Stream<Set<OWLAxiom>> stream) {
         return stream.peek(mcs -> infoMessage("Found " + (minimal ? "minimal correction" : "maximal consistent")
                 + " subset of size " + mcs.size() + "."));

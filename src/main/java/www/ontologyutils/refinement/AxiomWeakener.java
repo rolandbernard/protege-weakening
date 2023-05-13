@@ -1,6 +1,5 @@
 package www.ontologyutils.refinement;
 
-import java.util.List;
 import java.util.Set;
 import java.util.stream.*;
 
@@ -12,15 +11,22 @@ import www.ontologyutils.toolbox.*;
 /**
  * Implementation that can be used for weakening an axiom. Must be closed
  * after usage to free up resources used by the inner {@code Covers} object.
- *
- * The implementation is based on the approach presented in Troquard, Nicolas,
- * et al. "Repairing ontologies via axiom weakening." Proceedings of the AAAI
- * Conference on Artificial Intelligence. Vol. 32. No. 1. 2018. Definition 19.
  */
 public class AxiomWeakener extends AxiomRefinement {
     private static class Visitor extends AxiomRefinement.Visitor {
+        /**
+         * @param up
+         *            The "upward"-refinement.
+         * @param down
+         *            The "downward"-refinement.
+         * @param simpleRoles
+         *            The set of simple roles. These are used for deciding whether it is
+         *            safe to refine a role inclusion axiom.
+         * @param flags
+         *            Flags that can be used to make the refinement ore strict.
+         */
         public Visitor(RefinementOperator up, RefinementOperator down,
-                Set<OWLObjectProperty> simpleRoles, int flags) {
+                Set<OWLObjectPropertyExpression> simpleRoles, int flags) {
             super(up, down, simpleRoles, flags);
         }
 
@@ -41,7 +47,7 @@ public class AxiomWeakener extends AxiomRefinement {
                 return Stream.concat(Stream.of((OWLAxiom) axiom),
                         IntStream.range(0, individuals.size()).mapToObj(i -> i)
                                 .map(i -> df.getOWLSameIndividualAxiom(
-                                        Utils.removeFromList(individuals, i).collect(Collectors.toSet()))));
+                                        Utils.toSet(Utils.removeFromList(individuals, i)))));
             }
         }
 
@@ -57,7 +63,7 @@ public class AxiomWeakener extends AxiomRefinement {
                 return Stream.concat(Stream.of((OWLAxiom) axiom),
                         IntStream.range(0, individuals.size()).mapToObj(i -> i)
                                 .map(i -> df.getOWLDifferentIndividualsAxiom(
-                                        Utils.removeFromList(individuals, i).collect(Collectors.toSet()))));
+                                        Utils.toSet(Utils.removeFromList(individuals, i)))));
             }
         }
 
@@ -72,8 +78,7 @@ public class AxiomWeakener extends AxiomRefinement {
             } else {
                 return Stream.concat(Stream.of((OWLAxiom) axiom),
                         IntStream.range(0, concepts.size()).mapToObj(i -> i)
-                                .map(i -> df.getOWLEquivalentClassesAxiom(
-                                        Utils.removeFromList(concepts, i).collect(Collectors.toSet()))));
+                                .map(i -> df.getOWLEquivalentClassesAxiom(Utils.toSet(Utils.removeFromList(concepts, i)))));
             }
         }
 
@@ -82,26 +87,55 @@ public class AxiomWeakener extends AxiomRefinement {
             if ((flags & (FLAG_ALC_STRICT | FLAG_SROIQ_STRICT)) != 0) {
                 throw new IllegalArgumentException("The axiom " + axiom + " is not a SROIQ axiom.");
             }
-            var properties = List.copyOf(axiom.getProperties());
+            var properties = Utils.toList(axiom.getProperties().stream());
             if (properties.size() <= 2) {
                 return super.visit(axiom);
             } else {
                 return Stream.concat(Stream.of((OWLAxiom) axiom),
                         IntStream.range(0, properties.size()).mapToObj(i -> i)
                                 .map(i -> df.getOWLEquivalentObjectPropertiesAxiom(
-                                        Utils.removeFromList(properties, i).collect(Collectors.toSet()))));
+                                        Utils.toSet(Utils.removeFromList(properties, i)))));
             }
         }
     }
 
-    private AxiomWeakener(Covers covers, Cover upCover, Cover downCover,
-            Set<OWLObjectProperty> simpleRoles, int flags) {
+    private AxiomWeakener(Covers covers, Cover upCover, Cover downCover, Set<OWLObjectPropertyExpression> simpleRoles,
+            int flags) {
         super(new Visitor(new RefinementOperator(upCover, downCover, flags),
                 new RefinementOperator(downCover, upCover, flags), simpleRoles, flags), covers);
     }
 
-    private AxiomWeakener(Covers covers, Set<OWLObjectProperty> simpleRoles, int flags) {
-        this(covers, covers.upCover().cached(), covers.downCover().cached(), simpleRoles, flags);
+    private AxiomWeakener(Covers covers, Set<OWLObjectPropertyExpression> simpleRoles, int flags, boolean uncached) {
+        this(covers, uncached ? covers.upCover() : covers.upCover().cached(),
+                uncached ? covers.downCover() : covers.downCover().cached(), simpleRoles, flags);
+    }
+
+    /**
+     * @param refOntology
+     *            The reference ontology to use for the up and down covers.
+     * @param subConcepts
+     *            Return only concepts that are in this set.
+     * @param simpleRoles
+     *            The roles that are guaranteed to be simple.
+     * @param uncached
+     *            Do not use any caching, always call the reasoner.
+     */
+    public AxiomWeakener(Ontology refOntology, Set<OWLClassExpression> subConcepts,
+            Set<OWLObjectPropertyExpression> simpleRoles, boolean uncached) {
+        this(new Covers(refOntology, subConcepts, simpleRoles, uncached), simpleRoles, FLAG_NON_STRICT, uncached);
+    }
+
+    /**
+     * @param refOntology
+     *            The reference ontology to use for the up and down covers.
+     * @param fullOntology
+     *            The maximal ontology in which the weaker axioms will be
+     *            used in.
+     * @param uncached
+     *            Do not use any caching, always call the reasoner.
+     */
+    public AxiomWeakener(Ontology refOntology, Ontology fullOntology, boolean uncached) {
+        this(refOntology, Utils.toSet(fullOntology.subConcepts()), Utils.toSet(fullOntology.simpleRoles()), uncached);
     }
 
     /**
@@ -114,8 +148,8 @@ public class AxiomWeakener extends AxiomRefinement {
      * @param simpleRoles
      *            The roles that are guaranteed to be simple.
      */
-    public AxiomWeakener(Ontology refOntology, Set<OWLObjectProperty> simpleRoles) {
-        this(new Covers(refOntology, simpleRoles), simpleRoles, FLAG_NON_STRICT);
+    public AxiomWeakener(Ontology refOntology, Set<OWLObjectPropertyExpression> simpleRoles) {
+        this(refOntology, Utils.toSet(refOntology.subConcepts()), simpleRoles, false);
     }
 
     /**
@@ -128,7 +162,7 @@ public class AxiomWeakener extends AxiomRefinement {
      *            used in.
      */
     public AxiomWeakener(Ontology refOntology, Ontology fullOntology) {
-        this(refOntology, fullOntology.simpleRoles().collect(Collectors.toSet()));
+        this(refOntology, fullOntology, false);
     }
 
     /**

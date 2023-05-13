@@ -44,7 +44,7 @@ public class MaximalConsistentSubsets {
             boolean largest) {
         this.ontology = ontology;
         this.isRepaired = isRepaired;
-        axioms = ontology.refutableAxioms().collect(Collectors.toList());
+        axioms = Utils.toList(ontology.refutableAxioms());
         queue = new ArrayDeque<>();
         queue.add(new QueueItem(0, new HashSet<>()));
         results = new SetOfSets<>();
@@ -78,7 +78,9 @@ public class MaximalConsistentSubsets {
      * make the ontology inconsistent.
      *
      * @param ontology
+     *            The ontology to test.
      * @param axioms
+     *            The axioms to test adding in to confirm maximal consistency.
      * @return True iff {@code ontology} is maximally consistent with respect to
      *         {@code axioms}.
      */
@@ -87,7 +89,7 @@ public class MaximalConsistentSubsets {
         if (!ontology.isConsistent()) {
             return false;
         }
-        var contained = ontology.axioms().collect(Collectors.toSet());
+        var contained = Utils.toSet(ontology.axioms());
         try (var copy = ontology.clone()) {
             for (var axiom : axioms) {
                 if (!contained.contains(axiom)) {

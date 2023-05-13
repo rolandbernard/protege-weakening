@@ -1,7 +1,6 @@
 package www.ontologyutils.normalization;
 
 import java.util.*;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import org.semanticweb.owlapi.model.*;
@@ -51,6 +50,9 @@ public class TBoxNormalization implements OntologyModification {
 
     private Visitor visitor;
 
+    /**
+     * Create a new TBox normalization object.
+     */
     public TBoxNormalization() {
         visitor = new Visitor();
     }
@@ -67,8 +69,7 @@ public class TBoxNormalization implements OntologyModification {
 
     @Override
     public void apply(Ontology ontology) throws IllegalArgumentException {
-        var tBox = ontology.tboxAxioms()
-                .filter(axiom -> !axiom.isOfType(AxiomType.SUBCLASS_OF)).collect(Collectors.toList());
+        var tBox = Utils.toList(ontology.tboxAxioms().filter(axiom -> !axiom.isOfType(AxiomType.SUBCLASS_OF)));
         for (var axiom : tBox) {
             ontology.replaceAxiom(axiom, asSubclassOfAxioms(axiom));
         }

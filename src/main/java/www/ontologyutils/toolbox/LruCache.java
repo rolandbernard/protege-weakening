@@ -2,7 +2,6 @@ package www.ontologyutils.toolbox;
 
 import java.util.*;
 import java.util.function.Function;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 /**
@@ -12,12 +11,18 @@ import java.util.stream.Stream;
  * overwritten to specify a maximal cache size.
  */
 public class LruCache<K, V> extends LinkedHashMap<K, V> {
+    /**
+     * Maximum number of entries to keep in the cache.
+     */
     private int cacheSize;
 
     /**
-     * Create a new cache with the specified size.
+     * Create a new cache with the specified size. Note that the cache will
+     * preallocate the space needed.
      *
      * @param cacheSize
+     *            The maximum number of entries to keep in the cache. Use
+     *            Integer.MAX_VALUE to disable the limit completely.
      */
     public LruCache(int cacheSize) {
         super(cacheSize != Integer.MAX_VALUE ? cacheSize * 2 : 256, 0.75f, cacheSize != Integer.MAX_VALUE);
@@ -29,9 +34,13 @@ public class LruCache<K, V> extends LinkedHashMap<K, V> {
      * maximum number of {@code cacheSize} entries.
      *
      * @param <K>
+     *            The domain of the function.
      * @param <V>
+     *            The range of the function.
      * @param function
+     *            The function to wrap.
      * @param cacheSize
+     *            The cache size to use.
      * @return The wrapped function.
      */
     public static <K, V> Function<K, V> wrapFunction(Function<K, V> function, int cacheSize) {
@@ -46,8 +55,11 @@ public class LruCache<K, V> extends LinkedHashMap<K, V> {
      * unspecified maximum size.
      *
      * @param <K>
+     *            The domain of the function.
      * @param <V>
+     *            The range of the function.
      * @param function
+     *            The function to wrap.
      * @return The wrapped function.
      */
     public static <K, V> Function<K, V> wrapFunction(Function<K, V> function) {
@@ -59,14 +71,17 @@ public class LruCache<K, V> extends LinkedHashMap<K, V> {
      * converts the stream to a list, and then back to a stream whenever needed.
      *
      * @param <K>
+     *            The domain of the function.
      * @param <V>
+     *            The range of the function.
      * @param function
+     *            The function to wrap.
      * @param cacheSize
      *            The maximum number of entries in the cache.
      * @return The wrapped function.
      */
     public static <K, V> Function<K, Stream<V>> wrapStreamFunction(Function<K, Stream<V>> function, int cacheSize) {
-        var cached = wrapFunction((K input) -> function.apply(input).collect(Collectors.toList()), cacheSize);
+        var cached = wrapFunction((K input) -> Utils.toList(function.apply(input)), cacheSize);
         return input -> cached.apply(input).stream();
     }
 
@@ -75,12 +90,15 @@ public class LruCache<K, V> extends LinkedHashMap<K, V> {
      * converts the stream to a list, and then back to a stream whenever needed.
      *
      * @param <K>
+     *            The domain of the function.
      * @param <V>
+     *            The range of the function.
      * @param function
+     *            The function to wrap.
      * @return The wrapped function.
      */
     public static <K, V> Function<K, Stream<V>> wrapStreamFunction(Function<K, Stream<V>> function) {
-        var cached = wrapFunction((K input) -> function.apply(input).collect(Collectors.toList()));
+        var cached = wrapFunction((K input) -> Utils.toList(function.apply(input)));
         return input -> cached.apply(input).stream();
     }
 

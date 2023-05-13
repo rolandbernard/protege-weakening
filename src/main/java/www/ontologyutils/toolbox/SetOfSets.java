@@ -50,6 +50,7 @@ public class SetOfSets<K extends Comparable<? super K>> extends AbstractSet<Set<
 
     /**
      * @param key
+     *            The key to search with.
      * @return True iff the any element in this set is a subset of {@code key}.
      */
     public boolean containsSubset(Set<K> key) {
@@ -58,6 +59,7 @@ public class SetOfSets<K extends Comparable<? super K>> extends AbstractSet<Set<
 
     /**
      * @param key
+     *            The key to search with.
      * @return True iff the any element in this set is disjoint with {@code key}.
      */
     public boolean containsDisjoint(Set<K> key) {
@@ -66,6 +68,7 @@ public class SetOfSets<K extends Comparable<? super K>> extends AbstractSet<Set<
 
     /**
      * @param key
+     *            The key to search with.
      * @return True iff the any element in this set is a superset of {@code key}.
      */
     public boolean containsSuperset(Set<K> key) {
@@ -74,6 +77,7 @@ public class SetOfSets<K extends Comparable<? super K>> extends AbstractSet<Set<
 
     /**
      * @param key
+     *            The key to search with.
      * @return A stream of all element in this set that are subsets of {@code key}.
      */
     public Stream<Set<K>> subsets(Set<K> key) {
@@ -82,6 +86,7 @@ public class SetOfSets<K extends Comparable<? super K>> extends AbstractSet<Set<
 
     /**
      * @param key
+     *            The key to search with.
      * @return A stream of all element in this set that are supersets of
      *         {@code key}.
      */
@@ -91,6 +96,7 @@ public class SetOfSets<K extends Comparable<? super K>> extends AbstractSet<Set<
 
     /**
      * @param key
+     *            The key to search with.
      * @return Some entry which is a subset of {@code key} or null if no such entry
      *         exists.
      */
@@ -105,6 +111,7 @@ public class SetOfSets<K extends Comparable<? super K>> extends AbstractSet<Set<
 
     /**
      * @param key
+     *            The key to search with.
      * @return Some entry which is disjoint with {@code key} or null if no such
      *         entry exists.
      */
@@ -119,6 +126,7 @@ public class SetOfSets<K extends Comparable<? super K>> extends AbstractSet<Set<
 
     /**
      * @param key
+     *            The key to search with.
      * @return Some entry which is a superset of {@code key} or null if no such
      *         entry exists.
      */

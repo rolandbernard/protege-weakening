@@ -23,11 +23,23 @@ import www.ontologyutils.toolbox.*;
  * G., &amp; Toquard, N. (2020). Towards even more irresistible axiom weakening.
  */
 public class Covers implements AutoCloseable {
+    /**
+     * Class representing a single cover direction. Contains functions for concepts,
+     * roles, and integers.
+     */
     public static class Cover {
         private Function<OWLClassExpression, Stream<OWLClassExpression>> conceptCover;
         private Function<OWLObjectPropertyExpression, Stream<OWLObjectPropertyExpression>> roleCover;
         private Function<Integer, Stream<Integer>> intCover;
 
+        /**
+         * @param conceptCover
+         *            The concept function of this cover.
+         * @param roleCover
+         *            The role function of this cover.
+         * @param intCover
+         *            The integer function of the over.
+         */
         public Cover(Function<OWLClassExpression, Stream<OWLClassExpression>> conceptCover,
                 Function<OWLObjectPropertyExpression, Stream<OWLObjectPropertyExpression>> roleCover,
                 Function<Integer, Stream<Integer>> intCover) {
@@ -46,14 +58,29 @@ public class Covers implements AutoCloseable {
                     LruCache.wrapStreamFunction(intCover, Integer.MAX_VALUE));
         }
 
+        /**
+         * @param concept
+         *            The concept for which to compute the cover.
+         * @return The stream containing all elements of the cover.
+         */
         public Stream<OWLClassExpression> apply(OWLClassExpression concept) {
             return conceptCover.apply(concept);
         }
 
+        /**
+         * @param role
+         *            The role for which to compute the cover.
+         * @return The stream containing all elements of the cover.
+         */
         public Stream<OWLObjectPropertyExpression> apply(OWLObjectPropertyExpression role) {
             return roleCover.apply(role);
         }
 
+        /**
+         * @param number
+         *            The integer of which to compute the cover.
+         * @return The stream containing all elements of the cover.
+         */
         public Stream<Integer> apply(int number) {
             return intCover.apply(number);
         }
@@ -62,7 +89,7 @@ public class Covers implements AutoCloseable {
     private OWLDataFactory df;
     private Ontology refOntology;
     private Set<OWLClassExpression> subConcepts;
-    private Set<OWLObjectProperty> simpleRoles;
+    private Set<OWLObjectPropertyExpression> simpleRoles;
     private OWLReasoner reasoner;
     private PreorderCache<OWLClassExpression> isSubClass;
     private PreorderCache<OWLObjectPropertyExpression> isSubRole;
@@ -72,11 +99,14 @@ public class Covers implements AutoCloseable {
      *
      * @param refOntology
      *            The ontology used for entailment check.
+     * @param subConcepts
+     *            Return only concepts that are in this set.
      * @param simpleRoles
      *            Return only roles that are in this set.
      */
-    public Covers(Ontology refOntology, Set<OWLObjectProperty> simpleRoles) {
-        this(refOntology, simpleRoles, false);
+    public Covers(Ontology refOntology, Set<OWLClassExpression> subConcepts,
+            Set<OWLObjectPropertyExpression> simpleRoles) {
+        this(refOntology, subConcepts, simpleRoles, false);
     }
 
     /**
@@ -84,30 +114,34 @@ public class Covers implements AutoCloseable {
      *
      * @param refOntology
      *            The ontology used for entailment check.
+     * @param subConcepts
+     *            Return only concepts that are in this set.
      * @param simpleRoles
      *            Return only roles that are in this set.
      * @param uncached
      *            If true, no subclass relation cache will be created.
      */
-    public Covers(Ontology refOntology, Set<OWLObjectProperty> simpleRoles, boolean uncached) {
+    public Covers(Ontology refOntology, Set<OWLClassExpression> subConcepts,
+            Set<OWLObjectPropertyExpression> simpleRoles,
+            boolean uncached) {
         df = Ontology.getDefaultDataFactory();
         this.refOntology = refOntology;
         this.reasoner = refOntology.getOwlReasoner();
-        this.subConcepts = refOntology.subConcepts().collect(Collectors.toSet());
-        this.subConcepts.add(df.getOWLThing());
-        this.subConcepts.add(df.getOWLNothing());
+        this.subConcepts = subConcepts;
         this.simpleRoles = simpleRoles;
         if (!uncached) {
-            this.isSubClass = new PreorderCache<>();
+            this.isSubClass = new SubClassCache();
             this.isSubClass.setupDomain(subConcepts);
-            this.isSubRole = new PreorderCache<>();
-            this.isSubRole.setupDomain(allSimpleRoles().collect(Collectors.toList()));
+            this.isSubRole = new SubRoleCache();
+            this.isSubRole.setupDomain(simpleRoles);
         }
     }
 
     /**
      * @param subClass
+     *            The possible sub concept.
      * @param superClass
+     *            The possible super concept.
      * @return True iff the reference ontology of this cover entails that
      *         {@code subclass} is a subclass of {@code superclass}.
      */
@@ -116,12 +150,15 @@ public class Covers implements AutoCloseable {
             throw new CanceledException();
         }
         var testAxiom = df.getOWLSubClassOfAxiom(subClass, superClass);
+        Ontology.reasonerCalls += 1;
         return reasoner.isEntailed(testAxiom);
     }
 
     /**
      * @param subClass
+     *            The possible sub concept.
      * @param superClass
+     *            The possible super concept.
      * @return True iff the reference ontology of this cover entails that
      *         {@code subclass} is a subclass of {@code superclass}.
      */
@@ -135,7 +172,9 @@ public class Covers implements AutoCloseable {
 
     /**
      * @param subRole
+     *            The possible sub role.
      * @param superRole
+     *            The possible super role.
      * @return True iff the reference ontology of this cover entails that
      *         {@code subRole} is subsumed by {@code superRole}.
      */
@@ -144,12 +183,15 @@ public class Covers implements AutoCloseable {
             throw new CanceledException();
         }
         var testAxiom = df.getOWLSubObjectPropertyOfAxiom(subRole, superRole);
+        Ontology.reasonerCalls += 1;
         return reasoner.isEntailed(testAxiom);
     }
 
     /**
      * @param subRole
+     *            The possible sub role.
      * @param superRole
+     *            The possible super role.
      * @return True iff the reference ontology of this cover entails that
      *         {@code subRole} is subsumed by {@code superRole}.
      */
@@ -165,18 +207,22 @@ public class Covers implements AutoCloseable {
      * For this function, a class A is a strict subclass of B iff A isSubclassOf B
      * is entailed but B isSubclassOf A is not.
      *
-     * @param subclass
-     * @param superclass
+     * @param subClass
+     *            The possible sub concept.
+     * @param superClass
+     *            The possible super concept.
      * @return True iff the reference ontology of this cover entails that
      *         {@code subclass} is a strict subclass of {@code superclass}.
      */
-    private boolean isStrictSubClass(OWLClassExpression subclass, OWLClassExpression superclass) {
-        return isSubClass(subclass, superclass) && !isSubClass(superclass, subclass);
+    private boolean isStrictSubClass(OWLClassExpression subClass, OWLClassExpression superClass) {
+        return isSubClass(subClass, superClass) && !isSubClass(superClass, subClass);
     }
 
     /**
      * @param concept
+     *            The concept for which to compute the upward cover.
      * @param candidate
+     *            The concept for which to check whether it is in the upward cover.
      * @return True iff {@code candidate} is in the upward cover of {@code concept}.
      */
     private boolean isInUpCover(OWLClassExpression concept, OWLClassExpression candidate) {
@@ -192,7 +238,6 @@ public class Covers implements AutoCloseable {
                             .filter(other -> subConcepts.contains(other) && isStrictSubClass(other, candidate)))
                     .sorted((a, b) -> Integer.compare(isSubClass.getKnownPredecessors(b).size(),
                             isSubClass.getKnownPredecessors(a).size()))
-                    .collect(Collectors.toList()).stream()
                     .anyMatch(other -> isStrictSubClass(concept, other));
         } else {
             return !subConcepts.stream()
@@ -202,6 +247,7 @@ public class Covers implements AutoCloseable {
 
     /**
      * @param concept
+     *            The concept for which to compute the upward cover.
      * @return All concepts that are in the upward cover of {@code concept}.
      */
     public Stream<OWLClassExpression> upCover(OWLClassExpression concept) {
@@ -211,7 +257,10 @@ public class Covers implements AutoCloseable {
 
     /**
      * @param concept
+     *            The concept for which to compute the downward cover.
      * @param candidate
+     *            The concept for which to check whether it is in the downward
+     *            cover.
      * @return True iff {@code candidate} is in the downward cover of
      *         {@code concept}.
      */
@@ -228,7 +277,6 @@ public class Covers implements AutoCloseable {
                             .filter(other -> subConcepts.contains(other) && isStrictSubClass(candidate, other)))
                     .sorted((a, b) -> Integer.compare(isSubClass.getKnownSuccessors(b).size(),
                             isSubClass.getKnownSuccessors(a).size()))
-                    .collect(Collectors.toList()).stream()
                     .anyMatch(other -> isStrictSubClass(other, concept));
         } else {
             return !subConcepts.stream()
@@ -238,6 +286,7 @@ public class Covers implements AutoCloseable {
 
     /**
      * @param concept
+     *            The concept for which to compute the downward cover.
      * @return All concepts that are in the downward cover of {@code concept}.
      */
     public Stream<OWLClassExpression> downCover(OWLClassExpression concept) {
@@ -246,99 +295,98 @@ public class Covers implements AutoCloseable {
     }
 
     /**
-     * @return A stream containing all simple roles in the reference ontology.
-     */
-    private Stream<OWLObjectPropertyExpression> allSimpleRoles() {
-        return simpleRoles.stream().flatMap(role -> Stream.of(role, role.getInverseProperty()));
-    }
-
-    /**
      * For this function, a class A is a strict subclass of B iff A
      * isSubObjectPropertyOf B is entailed but B isSubObjectPropertyOf A is not.
      *
      * @param subRole
+     *            The possible sub role.
      * @param superRole
+     *            The possible super role.
      * @return True iff the reference ontology of this cover entails that
      *         {@code subRole} is strictly subsumed by {@code superRole}.
      */
-    private boolean isStrictSubRole(OWLObjectPropertyExpression subRole,
-            OWLObjectPropertyExpression superRole) {
+    private boolean isStrictSubRole(OWLObjectPropertyExpression subRole, OWLObjectPropertyExpression superRole) {
         return isSubRole(subRole, superRole) && !isSubRole(superRole, subRole);
     }
 
     /**
      * @param role
+     *            The role to compute the upward cover for.
      * @param candidate
+     *            The role for which to check whether it is in the upward cover.
      * @return True iff {@code candidate} is in the upward cover of {@code role}.
      */
     private boolean isInUpCover(OWLObjectPropertyExpression role, OWLObjectPropertyExpression candidate) {
-        if (!simpleRoles.contains(candidate.getNamedProperty()) || !isSubRole(role, candidate)) {
+        if (!simpleRoles.contains(candidate) || !isSubRole(role, candidate)) {
             return false;
         } else if (isSubClass != null) {
             return !Stream.concat(
                     isSubRole.knownStrictPredecessors(candidate)
-                            .filter(other -> simpleRoles.contains(other.getNamedProperty())),
+                            .filter(other -> simpleRoles.contains(other)),
                     isSubRole.possibleStrictPredecessors(candidate)
                             .sorted((a, b) -> Integer.compare(isSubRole.getKnownSuccessors(b).size(),
                                     isSubRole.getKnownSuccessors(a).size()))
-                            .filter(other -> simpleRoles.contains(other.getNamedProperty())
+                            .filter(other -> simpleRoles.contains(other)
                                     && isStrictSubRole(other, candidate)))
                     .sorted((a, b) -> Integer.compare(isSubRole.getKnownPredecessors(b).size(),
                             isSubRole.getKnownPredecessors(a).size()))
-                    .collect(Collectors.toList()).stream()
                     .anyMatch(other -> isStrictSubRole(role, other));
         } else {
-            return !allSimpleRoles()
+            return !simpleRoles.stream()
                     .anyMatch(other -> isStrictSubRole(other, candidate) && isStrictSubRole(role, other));
         }
     }
 
     /**
      * @param role
+     *            The role for which to compute the upward cover.
      * @return All role that are in the upward cover of {@code role}.
      */
     public Stream<OWLObjectPropertyExpression> upCover(OWLObjectPropertyExpression role) {
-        return allSimpleRoles().filter(candidate -> isInUpCover(role, candidate));
+        return simpleRoles.stream().filter(candidate -> isInUpCover(role, candidate));
     }
 
     /**
      * @param role
+     *            The role to find the downward cover for.
      * @param candidate
+     *            The candidate to check whether it is in the downward cover.
      * @return True iff {@code candidate} is in the downward cover of
      *         {@code role}.
      */
     private boolean isInDownCover(OWLObjectPropertyExpression role, OWLObjectPropertyExpression candidate) {
-        if (!simpleRoles.contains(candidate.getNamedProperty()) || !isSubRole(candidate, role)) {
+        if (!simpleRoles.contains(candidate) || !isSubRole(candidate, role)) {
             return false;
         } else if (isSubClass != null) {
             return !Stream.concat(
                     isSubRole.knownStrictSuccessors(candidate)
-                            .filter(other -> simpleRoles.contains(other.getNamedProperty())),
+                            .filter(other -> simpleRoles.contains(other)),
                     isSubRole.possibleStrictSuccessors(candidate)
                             .sorted((a, b) -> Integer.compare(isSubRole.getKnownPredecessors(b).size(),
                                     isSubRole.getKnownPredecessors(a).size()))
-                            .filter(other -> simpleRoles.contains(other.getNamedProperty())
+                            .filter(other -> simpleRoles.contains(other)
                                     && isStrictSubRole(candidate, other)))
                     .sorted((a, b) -> Integer.compare(isSubRole.getKnownSuccessors(b).size(),
                             isSubRole.getKnownSuccessors(a).size()))
-                    .collect(Collectors.toList()).stream()
                     .anyMatch(other -> isStrictSubRole(other, role));
         } else {
-            return !allSimpleRoles()
+            return !simpleRoles.stream()
                     .anyMatch(other -> isStrictSubRole(candidate, other) && isStrictSubRole(other, role));
         }
     }
 
     /**
      * @param role
+     *            The role to compute the downward cover for.
      * @return All roles that are in the downward cover of {@code role}.
      */
     public Stream<OWLObjectPropertyExpression> downCover(OWLObjectPropertyExpression role) {
-        return allSimpleRoles().filter(candidate -> isInDownCover(role, candidate));
+        return simpleRoles.stream().filter(candidate -> isInDownCover(role, candidate));
     }
 
     /**
      * @param number
+     *            A non-negative integer to compute the upward cover for.
      * @return All numbers that are in the downward cover of {@code number}.
      */
     public Stream<Integer> upCover(Integer number) {
@@ -347,6 +395,7 @@ public class Covers implements AutoCloseable {
 
     /**
      * @param number
+     *            A non-negative integer to compute the downward cover for.
      * @return All numbers that are in the downward cover of {@code number}.
      */
     public Stream<Integer> downCover(Integer number) {

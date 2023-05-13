@@ -1,7 +1,6 @@
 package www.ontologyutils.normalization;
 
 import java.util.*;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import org.semanticweb.owlapi.model.*;
@@ -56,28 +55,25 @@ public class ABoxNormalization implements OntologyModification {
         @Override
         public Collection<OWLAxiom> visit(OWLDifferentIndividualsAxiom axiom) {
             var individuals = axiom.getIndividualsAsList();
-            return individuals.stream()
+            return Utils.toList(individuals.stream()
                     .flatMap(first -> individuals.stream()
                             .filter(second -> !first.equals(second))
-                            .map(second -> (OWLAxiom) df.getOWLDifferentIndividualsAxiom(first, second)))
-                    .collect(Collectors.toList());
+                            .map(second -> (OWLAxiom) df.getOWLDifferentIndividualsAxiom(first, second))));
         }
 
         @Override
         public Collection<OWLAxiom> visit(OWLSameIndividualAxiom axiom) {
             var individuals = axiom.getIndividualsAsList();
             if (fullEquality) {
-                return individuals.stream()
+                return Utils.toList(individuals.stream()
                         .flatMap(first -> individuals.stream()
                                 .filter(second -> !first.equals(second))
-                                .map(second -> (OWLAxiom) df.getOWLSameIndividualAxiom(first, second)))
-                        .collect(Collectors.toList());
+                                .map(second -> (OWLAxiom) df.getOWLSameIndividualAxiom(first, second))));
             } else {
                 var first = individuals.get(0);
-                return individuals.stream()
+                return Utils.toList(individuals.stream()
                         .filter(second -> !first.equals(second))
-                        .map(second -> (OWLAxiom) df.getOWLSameIndividualAxiom(first, second))
-                        .collect(Collectors.toList());
+                        .map(second -> (OWLAxiom) df.getOWLSameIndividualAxiom(first, second)));
             }
         }
 
@@ -99,6 +95,9 @@ public class ABoxNormalization implements OntologyModification {
         visitor = new Visitor(fullEquality);
     }
 
+    /**
+     * Create a new normalization object that does not use full equality.
+     */
     public ABoxNormalization() {
         this(false);
     }
@@ -115,9 +114,8 @@ public class ABoxNormalization implements OntologyModification {
 
     @Override
     public void apply(Ontology ontology) throws IllegalArgumentException {
-        var tBox = ontology.aboxAxioms().collect(Collectors.toList());
-        ;
-        for (var axiom : tBox) {
+        var aBox = Utils.toList(ontology.aboxAxioms());
+        for (var axiom : aBox) {
             ontology.replaceAxiom(axiom, asSroiqAxioms(axiom));
         }
     }

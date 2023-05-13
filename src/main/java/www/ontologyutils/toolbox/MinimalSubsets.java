@@ -20,7 +20,7 @@ import java.util.stream.*;
  * Fast computation of multiple conflicts for diagnosis." Twenty-Fourth
  * International Joint Conference on Artificial Intelligence. 2015.
  * and
- * Kalyanpur, A., Parsia, B., Horridge, M., & Sirin, E. (2007). Finding all
+ * Kalyanpur, A., Parsia, B., Horridge, M., &amp; Sirin, E. (2007). Finding all
  * justifications of OWL DL entailments. ISWC/ASWC, 4825, 267-280.
  */
 public final class MinimalSubsets {
@@ -42,11 +42,11 @@ public final class MinimalSubsets {
 
     @SafeVarargs
     private static <T> Set<T> getUnion(Collection<T>... parts) {
-        return Arrays.stream(parts).flatMap(c -> c.stream()).collect(Collectors.toSet());
+        return Utils.toSet(Arrays.stream(parts).flatMap(c -> c.stream()));
     }
 
     private static <T> Set<T> getDifference(Collection<T> base, Collection<T> remove) {
-        return base.stream().filter(c -> !remove.contains(c)).collect(Collectors.toSet());
+        return Utils.toSet(base.stream().filter(c -> !remove.contains(c)));
     }
 
     private static <T> boolean isValidWithoutFirst(Collection<T> contained, List<T> search, int n,
@@ -71,14 +71,18 @@ public final class MinimalSubsets {
      * Computes a single minimal subset of {@code set} that satisfies the
      * predicate together with {@code contained}. The predicate must be monotone.
      *
+     * @param <T>
+     *            The type of the set elements.
      * @param contained
+     *            The set of axioms that must be included before testing.
      * @param set
+     *            The set of axioms for which to find a minimal subset.
      * @param isValid
+     *            The monotone predicate that should be satisfied by the subset.
      * @return A minimal subset that satisfies {@code isValid} or null if no such
      *         set exists.
      */
-    public static <T> Set<T> getMinimalSubset(Collection<T> contained, Collection<T> set,
-            Predicate<Set<T>> isValid) {
+    public static <T> Set<T> getMinimalSubset(Collection<T> contained, Collection<T> set, Predicate<Set<T>> isValid) {
         if (!isValid.test(getUnion(contained, set))) {
             return null;
         }
@@ -106,8 +110,12 @@ public final class MinimalSubsets {
      * Computes a single minimal subset of {@code set} that satisfies the
      * predicate. The predicate must be monotone.
      *
+     * @param <T>
+     *            The type of the set elements.
      * @param set
+     *            The set to find a subset for.
      * @param isValid
+     *            The monotone predicate that must be satisfied.
      * @return A minimal subset that satisfies {@code isValid} or null if no such
      *         set exists.
      */
@@ -121,8 +129,12 @@ public final class MinimalSubsets {
      * {@code getMinimalSubset} this method randomly shuffles the input set before
      * searching.
      *
+     * @param <T>
+     *            The type of the set elements.
      * @param set
+     *            The set to find a subset for.
      * @param isValid
+     *            The monotone predicate that must be satisfied.
      * @return A minimal subset that satisfies {@code isValid}.
      */
     public static <T> Set<T> getRandomizedMinimalSubset(Collection<T> set, Predicate<Set<T>> isValid) {
@@ -158,9 +170,13 @@ public final class MinimalSubsets {
      * this implementation is not designed to find all minimal sets.
      *
      * @param <T>
+     *            The type of the set elements.
      * @param contained
+     *            The set of axioms that must be included before testing.
      * @param set
+     *            The set to find a subset for.
      * @param isValid
+     *            The monotone predicate that must be satisfied.
      * @return A set containing minimal sets.
      */
     public static <T> Set<Set<T>> getMinimalSubsets(Collection<T> contained, Collection<T> set,
@@ -178,8 +194,11 @@ public final class MinimalSubsets {
      * find all minimal sets.
      *
      * @param <T>
+     *            The type of the set elements.
      * @param set
+     *            The set to find a subset for.
      * @param isValid
+     *            The monotone predicate that must be satisfied.
      * @return A set containing minimal sets.
      */
     public static <T> Set<Set<T>> getMinimalSubsets(Collection<T> set, Predicate<Set<T>> isValid) {
@@ -188,13 +207,16 @@ public final class MinimalSubsets {
 
     /**
      * @param <T>
+     *            The type of the set elements.
      * @param set
+     *            The set to find a subset for.
      * @param tries
+     *            The number of times to reorder and compute subsets.
      * @param isValid
+     *            The monotone predicate that must be satisfied.
      * @return A set containing minimal sets.
      */
-    public static <T> Stream<Set<T>> randomizedMinimalSubsets(Collection<T> set, int tries,
-            Predicate<Set<T>> isValid) {
+    public static <T> Stream<Set<T>> randomizedMinimalSubsets(Collection<T> set, int tries, Predicate<Set<T>> isValid) {
         return IntStream.range(0, tries).mapToObj(i -> getMinimalSubsets(Utils.randomOrder(set), isValid))
                 .flatMap(sets -> sets.stream()).distinct();
     }
@@ -208,7 +230,7 @@ public final class MinimalSubsets {
         sets.add(set);
     }
 
-    private static <T extends Comparable<? super T>> void getAllMinimalSubsetsHelper(Set<T> contained,
+    private static <T extends Comparable<? super T>> void getAllMinimalSubsetsHelper(Collection<T> contained,
             Collection<T> set, Predicate<Set<T>> isValid, Set<T> path, SetOfSets<T> minimalSets,
             Set<Set<T>> hittingSets, SetOfSets<T> prefixPaths, Map<T, Integer> frequency) {
         if (prefixPaths.containsSubset(path)) {
@@ -216,9 +238,9 @@ public final class MinimalSubsets {
         }
         Set<T> minimalSet = minimalSets.getDisjoint(path);
         if (minimalSet == null) {
-            minimalSet = getMinimalSubset(contained, List.copyOf(set), isValid);
+            minimalSet = getMinimalSubset(contained, set, isValid);
             if (minimalSet == null) {
-                var minimalHitting = getMinimalSubset(Set.of(), List.copyOf(path),
+                var minimalHitting = getMinimalSubset(Set.of(), path,
                         s -> !isValid.test(getUnion(contained, set, getDifference(path, s))));
                 addToSetOfSets(prefixPaths, minimalHitting);
                 if (hittingSets != null) {
@@ -245,9 +267,13 @@ public final class MinimalSubsets {
 
     /**
      * @param <T>
+     *            The type of the set elements.
      * @param contained
+     *            The set of axioms that must be included before testing.
      * @param set
+     *            The set to find a subset for.
      * @param isValid
+     *            The monotone predicate that must be satisfied.
      * @return All minimal subsets that together with {@code contained} satisfy the
      *         monotone predicate {@code isValid}.
      */
@@ -267,8 +293,11 @@ public final class MinimalSubsets {
 
     /**
      * @param <T>
+     *            The type of the set elements.
      * @param set
+     *            The set to find a subset for.
      * @param isValid
+     *            The monotone predicate that must be satisfied.
      * @return All minimal subsets that satisfy the monotone predicate
      *         {@code isValid}.
      */
@@ -279,9 +308,13 @@ public final class MinimalSubsets {
 
     /**
      * @param <T>
+     *            The type of the set elements.
      * @param contained
+     *            The set of axioms that must be included before testing.
      * @param set
+     *            The set to find a subset for.
      * @param isValid
+     *            The monotone predicate that must be satisfied.
      * @return All minimal hitting sets for the justifications of {@code isValid}.
      */
     public static <T extends Comparable<? super T>> Set<Set<T>> getAllMinimalHittingSets(Collection<T> contained,
@@ -301,8 +334,11 @@ public final class MinimalSubsets {
 
     /**
      * @param <T>
+     *            The type of the set elements.
      * @param set
+     *            The set to find a subset for.
      * @param isValid
+     *            The monotone predicate that must be satisfied.
      * @return All minimal hitting sets for the justifications of {@code isValid}.
      */
     public static <T extends Comparable<? super T>> Set<Set<T>> getAllMinimalHittingSets(Collection<T> set,
@@ -311,8 +347,8 @@ public final class MinimalSubsets {
     }
 
     private static <T extends Comparable<? super T>> Set<T> allMinimalSubsetsHelper(Collection<T> contained,
-            Collection<T> set, Predicate<Set<T>> isValid, ArrayDeque<Set<T>> queue,
-            SetOfSets<T> minimalSets, SetOfSets<T> hittingSets, Map<T, Integer> frequency) {
+            Collection<T> set, Predicate<Set<T>> isValid, ArrayDeque<Set<T>> queue, SetOfSets<T> minimalSets,
+            SetOfSets<T> hittingSets, Map<T, Integer> frequency) {
         Set<T> result = null;
         while (result == null && !queue.isEmpty()) {
             var path = queue.pop();
@@ -345,9 +381,13 @@ public final class MinimalSubsets {
 
     /**
      * @param <T>
+     *            The type of the set elements.
      * @param contained
+     *            The set of axioms that must be included before testing.
      * @param set
+     *            The set to find a subset for.
      * @param isValid
+     *            The monotone predicate that must be satisfied.
      * @return All minimal subsets that together with {@code contained} satisfy the
      *         monotone predicate {@code isValid}.
      */
@@ -385,8 +425,11 @@ public final class MinimalSubsets {
 
     /**
      * @param <T>
+     *            The type of the set elements.
      * @param set
+     *            The set to find a subset for.
      * @param isValid
+     *            The monotone predicate that must be satisfied.
      * @return All minimal subsets that satisfy the monotone predicate
      *         {@code isValid}.
      */

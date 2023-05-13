@@ -2,12 +2,10 @@ package www.ontologyutils.normalization;
 
 import java.util.List;
 import java.util.function.*;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import org.semanticweb.owlapi.model.*;
-import org.semanticweb.owlapi.util.OWLAxiomVisitorExAdapter;
-import org.semanticweb.owlapi.util.OWLClassExpressionVisitorExAdapter;
+import org.semanticweb.owlapi.util.*;
 
 import www.ontologyutils.toolbox.*;
 
@@ -40,8 +38,7 @@ public class ConceptNormalization implements OntologyModification {
         @Override
         public OWLAxiom visit(OWLDisjointClassesAxiom axiom) {
             return df.getOWLDisjointClassesAxiom(
-                    axiom.getClassExpressions().stream().map(concept -> concept.accept(visitor))
-                            .collect(Collectors.toSet()));
+                    Utils.toSet(axiom.getClassExpressions().stream().map(concept -> concept.accept(visitor))));
         }
 
         @Override
@@ -62,8 +59,7 @@ public class ConceptNormalization implements OntologyModification {
         public OWLAxiom visit(OWLDisjointUnionAxiom axiom) {
             return df.getOWLDisjointUnionAxiom(
                     axiom.getOWLClass(),
-                    axiom.getClassExpressions().stream().map(concept -> concept.accept(visitor))
-                            .collect(Collectors.toSet()));
+                    Utils.toSet(axiom.getClassExpressions().stream().map(concept -> concept.accept(visitor))));
         }
 
         @Override
@@ -76,8 +72,7 @@ public class ConceptNormalization implements OntologyModification {
         @Override
         public OWLAxiom visit(OWLEquivalentClassesAxiom axiom) {
             return df.getOWLDisjointClassesAxiom(
-                    axiom.getClassExpressions().stream().map(concept -> concept.accept(visitor))
-                            .collect(Collectors.toSet()));
+                    Utils.toSet(axiom.getClassExpressions().stream().map(concept -> concept.accept(visitor))));
         }
 
         @Override
@@ -137,15 +132,13 @@ public class ConceptNormalization implements OntologyModification {
         @Override
         public OWLClassExpression visit(OWLObjectIntersectionOf ce) {
             var operands = ce.getOperandsAsList();
-            return binaryOperator(operands, ces -> df.getOWLObjectIntersectionOf(ces.collect(Collectors.toSet())),
-                    () -> df.getOWLThing());
+            return binaryOperator(operands, ces -> df.getOWLObjectIntersectionOf(Utils.toSet(ces)), () -> df.getOWLThing());
         }
 
         @Override
         public OWLClassExpression visit(OWLObjectUnionOf ce) {
             var operands = ce.getOperandsAsList();
-            return binaryOperator(operands, ces -> df.getOWLObjectUnionOf(ces.collect(Collectors.toSet())),
-                    () -> df.getOWLNothing());
+            return binaryOperator(operands, ces -> df.getOWLObjectUnionOf(Utils.toSet(ces)), () -> df.getOWLNothing());
         }
 
         @Override
@@ -194,10 +187,17 @@ public class ConceptNormalization implements OntologyModification {
 
     private AxiomVisitor visitor;
 
+    /**
+     * @param binaryOperators
+     *            Whether to transform union and intersection to binary operations.
+     */
     public ConceptNormalization(boolean binaryOperators) {
         visitor = new AxiomVisitor(new ConceptVisitor(binaryOperators));
     }
 
+    /**
+     * Create a new concept normalization object.
+     */
     public ConceptNormalization() {
         this(false);
     }
@@ -222,7 +222,7 @@ public class ConceptNormalization implements OntologyModification {
 
     @Override
     public void apply(Ontology ontology) throws IllegalArgumentException {
-        var axioms = ontology.axioms().collect(Collectors.toList());
+        var axioms = Utils.toList(ontology.axioms());
         for (var axiom : axioms) {
             ontology.replaceAxiom(axiom, asSroiqAxiom(axiom));
         }
