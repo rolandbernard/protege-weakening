@@ -154,28 +154,35 @@ public class OntologyRepairWeakening extends OntologyRepair {
      * @return The set of axioms to include in the reference ontology to use for
      *         repairs.
      */
-    public Set<OWLAxiom> getRefAxioms(Ontology ontology) {
+    public Stream<Set<OWLAxiom>> getRefAxioms(Ontology ontology) {
         switch (refOntologySource) {
             case INTERSECTION_OF_MCS: {
-                return mcsPeekInfo(false, ontology.maximalConsistentSubsets(isRepaired)).reduce((a, b) -> {
+                return Stream.of(mcsPeekInfo(false, ontology.maximalConsistentSubsets(isRepaired)).reduce((a, b) -> {
                     a.removeIf(axiom -> !b.contains(axiom));
                     return a;
-                }).get();
+                }).get());
             }
             case INTERSECTION_OF_SOME_MCS: {
-                return mcsPeekInfo(false, ontology.someMaximalConsistentSubsets(isRepaired)).reduce((a, b) -> {
-                    a.removeIf(axiom -> !b.contains(axiom));
-                    return a;
-                }).get();
+                return Stream
+                        .of(mcsPeekInfo(false, ontology.someMaximalConsistentSubsets(isRepaired)).reduce((a, b) -> {
+                            a.removeIf(axiom -> !b.contains(axiom));
+                            return a;
+                        }).get());
             }
             case LARGEST_MCS:
-                return Utils.randomChoice(mcsPeekInfo(false, ontology.largestMaximalConsistentSubsets(isRepaired)));
+                return mcsPeekInfo(false, ontology.largestMaximalConsistentSubsets(isRepaired));
             case RANDOM_MCS:
-                return Utils.randomChoice(mcsPeekInfo(false, ontology.maximalConsistentSubsets(isRepaired)));
+                return mcsPeekInfo(false, ontology.maximalConsistentSubsets(isRepaired));
             case SOME_MCS:
-                return Utils.randomChoice(mcsPeekInfo(false, ontology.someMaximalConsistentSubsets(isRepaired)));
-            case ONE_MCS:
-                return ontology.maximalConsistentSubset(isRepaired);
+                return mcsPeekInfo(false, ontology.someMaximalConsistentSubsets(isRepaired));
+            case ONE_MCS: {
+                var mcs = ontology.maximalConsistentSubset(isRepaired);
+                if (mcs == null) {
+                    return Stream.of();
+                } else {
+                    return Stream.of(mcs);
+                }
+            }
             default:
                 throw new IllegalArgumentException("Unimplemented reference ontology choice strategy.");
         }
@@ -210,10 +217,22 @@ public class OntologyRepairWeakening extends OntologyRepair {
                 return ontology.someMinimalCorrectionSubsets(isRepaired).flatMap(mcs -> mcs.stream());
             case IN_SOME_MUS:
                 return ontology.someMinimalUnsatisfiableSubsets(isRepaired).flatMap(mus -> mus.stream());
-            case IN_ONE_MUS:
-                return ontology.minimalUnsatisfiableSubset(isRepaired).stream();
-            case NOT_IN_ONE_MCS:
-                return ontology.minimalCorrectionSubset(isRepaired).stream();
+            case IN_ONE_MUS: {
+                var mus = ontology.minimalUnsatisfiableSubset(isRepaired);
+                if (mus == null) {
+                    return Stream.of();
+                } else {
+                    return mus.stream();
+                }
+            }
+            case NOT_IN_ONE_MCS: {
+                var mcs = ontology.minimalCorrectionSubset(isRepaired);
+                if (mcs == null) {
+                    return Stream.of();
+                } else {
+                    return mcs.stream();
+                }
+            }
             case RANDOM:
                 return ontology.refutableAxioms();
             default:
@@ -223,7 +242,7 @@ public class OntologyRepairWeakening extends OntologyRepair {
 
     @Override
     public void repair(Ontology ontology) {
-        var refAxioms = getRefAxioms(ontology);
+        var refAxioms = Utils.randomChoice(getRefAxioms(ontology));
         infoMessage("Selected a reference ontology with " + refAxioms.size() + " axioms.");
         try (var refOntology = ontology.cloneWithRefutable(refAxioms)) {
             try (var axiomWeakener = new AxiomWeakener(refOntology, ontology)) {

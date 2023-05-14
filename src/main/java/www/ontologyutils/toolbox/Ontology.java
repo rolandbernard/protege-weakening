@@ -528,6 +528,17 @@ public class Ontology implements AutoCloseable {
     }
 
     /**
+     * Remove all refutable axioms, and add the axioms from axioms.
+     *
+     * @param axioms
+     *            The axioms to use.
+     */
+    public void setRefutableAxioms(Collection<? extends OWLAxiom> axioms) {
+        refutableAxioms.clear();
+        refutableAxioms.addAll(axioms);
+    }
+
+    /**
      * Replace a axiom with a collection of other axioms. All new axioms will be
      * annotated with the original axioms as the origin.
      *
