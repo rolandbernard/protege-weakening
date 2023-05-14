@@ -66,7 +66,7 @@ public class OntologyRepairRandomMcs extends OntologyRepair {
      *         ontology coherent.
      */
     public static OntologyRepair forCoherence() {
-        return new OntologyRepairRandomMcs(Ontology::isCoherent);
+        return new OntologyRepairRandomMcs(isCoherent());
     }
 
     /**

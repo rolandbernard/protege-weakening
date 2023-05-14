@@ -78,7 +78,8 @@ public class RefinementOperator {
             }
             return IntStream.range(0, conjuncts.size()).mapToObj(i -> i)
                     .flatMap(i -> refine(conjuncts.get(i))
-                            .map(refined -> df.getOWLObjectIntersectionOf(Utils.toSet(Utils.replaceInList(conjuncts, i, refined)))));
+                            .map(refined -> df.getOWLObjectIntersectionOf(
+                                    Utils.toSet(Utils.replaceInList(conjuncts, i, refined)))));
         }
 
         @Override
@@ -89,7 +90,8 @@ public class RefinementOperator {
             }
             return IntStream.range(0, disjuncts.size()).mapToObj(i -> i)
                     .flatMap(i -> refine(disjuncts.get(i))
-                            .map(refined -> df.getOWLObjectUnionOf(Utils.toSet(Utils.replaceInList(disjuncts, i, refined)))));
+                            .map(refined -> df
+                                    .getOWLObjectUnionOf(Utils.toSet(Utils.replaceInList(disjuncts, i, refined)))));
         }
 
         @Override

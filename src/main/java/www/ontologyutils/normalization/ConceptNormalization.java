@@ -132,7 +132,8 @@ public class ConceptNormalization implements OntologyModification {
         @Override
         public OWLClassExpression visit(OWLObjectIntersectionOf ce) {
             var operands = ce.getOperandsAsList();
-            return binaryOperator(operands, ces -> df.getOWLObjectIntersectionOf(Utils.toSet(ces)), () -> df.getOWLThing());
+            return binaryOperator(operands, ces -> df.getOWLObjectIntersectionOf(Utils.toSet(ces)),
+                    () -> df.getOWLThing());
         }
 
         @Override

@@ -125,7 +125,7 @@ public class OntologyRepairWeakening extends OntologyRepair {
      *         ontology coherent.
      */
     public static OntologyRepair forCoherence() {
-        return new OntologyRepairWeakening(Ontology::isCoherent);
+        return new OntologyRepairWeakening(isCoherent());
     }
 
     /**
@@ -237,6 +237,7 @@ public class OntologyRepairWeakening extends OntologyRepair {
                     var weakerAxiom = Utils.randomChoice(weakerAxioms);
                     infoMessage("Selected the weaker axiom " + Utils.prettyPrintAxiom(weakerAxiom) + ".");
                     ontology.replaceAxiom(badAxiom, weakerAxiom);
+                    checkpoint(ontology);
                 }
             }
         }

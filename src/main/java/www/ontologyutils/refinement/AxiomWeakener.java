@@ -78,7 +78,8 @@ public class AxiomWeakener extends AxiomRefinement {
             } else {
                 return Stream.concat(Stream.of((OWLAxiom) axiom),
                         IntStream.range(0, concepts.size()).mapToObj(i -> i)
-                                .map(i -> df.getOWLEquivalentClassesAxiom(Utils.toSet(Utils.removeFromList(concepts, i)))));
+                                .map(i -> df
+                                        .getOWLEquivalentClassesAxiom(Utils.toSet(Utils.removeFromList(concepts, i)))));
             }
         }
 

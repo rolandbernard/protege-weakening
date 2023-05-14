@@ -163,7 +163,8 @@ public abstract class AxiomRefinement implements AutoCloseable {
             var concepts = axiom.getClassExpressionsAsList();
             return IntStream.range(0, concepts.size()).mapToObj(i -> i)
                     .flatMap(i -> down.refine(concepts.get(i))
-                            .map(refined -> df.getOWLDisjointClassesAxiom(Utils.toSet(Utils.replaceInList(concepts, i, refined)))));
+                            .map(refined -> df.getOWLDisjointClassesAxiom(
+                                    Utils.toSet(Utils.replaceInList(concepts, i, refined)))));
         }
 
         @Override

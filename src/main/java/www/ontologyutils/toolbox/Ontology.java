@@ -602,8 +602,7 @@ public class Ontology implements AutoCloseable {
      * @return true if the ontology is coherent, false otherwise.
      */
     public boolean isCoherent() {
-        return withReasonerDo(reasoner -> reasoner.isConsistent()
-                && reasoner.getUnsatisfiableClasses().getEntitiesMinusBottom().isEmpty());
+        return isConsistent() && isSatisfiable(conceptsInSignature().toArray(n -> new OWLClass[n]));
     }
 
     /**
@@ -634,12 +633,26 @@ public class Ontology implements AutoCloseable {
     }
 
     /**
-     * @param concept
-     *            The concept to test.
+     * @param concepts
+     *            The concepts to test.
      * @return true if the concept is satisfiable.
      */
-    public boolean isSatisfiable(OWLClassExpression concept) {
-        return withReasonerDo(reasoner -> reasoner.isSatisfiable(concept));
+    public boolean isSatisfiable(OWLClassExpression... concepts) {
+        return withReasonerDo(reasoner -> {
+            for (var concept : concepts) {
+                if (!reasoner.isSatisfiable(concept)) {
+                    return false;
+                }
+            }
+            return true;
+        });
+    }
+
+    /**
+     * @return A stream with all unsatisfiable atomic concept.
+     */
+    public Stream<OWLClass> unsatisfiableConcepts() {
+        return withReasonerDo(reasoner -> reasoner.getUnsatisfiableClasses().getEntities()).stream();
     }
 
     /**
@@ -823,7 +836,8 @@ public class Ontology implements AutoCloseable {
      * @return A stream containing all non-simple roles.
      */
     public Stream<OWLObjectPropertyExpression> nonSimpleRoles() {
-        return withOwlOntologyDo(ontology -> (new OWLObjectPropertyManager(ontology.getOWLOntologyManager(), ontology)).getNonSimpleProperties()).stream();
+        return withOwlOntologyDo(ontology -> (new OWLObjectPropertyManager(ontology.getOWLOntologyManager(), ontology))
+                .getNonSimpleProperties()).stream();
     }
 
     /**

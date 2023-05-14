@@ -197,7 +197,8 @@ public final class Utils {
                 case OBJECT_INTERSECTION_OF: {
                     var u1 = (OWLNaryBooleanClassExpression) c1;
                     var u2 = (OWLNaryBooleanClassExpression) c2;
-                    return u1.getOperands().stream().allMatch(d1 -> u2.getOperands().stream().anyMatch(d2 -> sameConcept(d1, d2)));
+                    return u1.getOperands().stream()
+                            .allMatch(d1 -> u2.getOperands().stream().anyMatch(d2 -> sameConcept(d1, d2)));
                 }
                 case OBJECT_MIN_CARDINALITY:
                 case OBJECT_MAX_CARDINALITY:

@@ -5,7 +5,7 @@ import java.util.function.Consumer;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
 
-import org.semanticweb.owlapi.model.OWLAxiom;
+import org.semanticweb.owlapi.model.*;
 
 import www.ontologyutils.toolbox.*;
 
@@ -15,6 +15,36 @@ import www.ontologyutils.toolbox.*;
  * fewer consequences will also satisfy the predicate, i.e. it must be monotone.
  */
 public abstract class OntologyRepair implements OntologyModification {
+    private static class CoherenceTest implements Predicate<Ontology> {
+        Set<OWLClass> unsatisfiable;
+        OWLClass last;
+
+        /**
+         * @param ontology
+         *            The ontology that all subsequent tests are a subset of.
+         */
+        public void initialize(Ontology ontology) {
+            unsatisfiable = Utils.toSet(ontology.unsatisfiableConcepts());
+            last = null;
+        }
+
+        @Override
+        public boolean test(Ontology ontology) {
+            if (!ontology.isConsistent()) {
+                return false;
+            } else if (last != null && !ontology.isSatisfiable(last)) {
+                return false;
+            }
+            for (var concept : unsatisfiable) {
+                if (!ontology.isSatisfiable(concept)) {
+                    last = concept;
+                    return false;
+                }
+            }
+            return true;
+        }
+    }
+
     /**
      * Monotone predicate that tests if an ontology is repaired.
      */
@@ -23,6 +53,25 @@ public abstract class OntologyRepair implements OntologyModification {
      * A callback that should be called if we have info messages.
      */
     protected Consumer<String> infoCallback;
+
+    /**
+     * For more efficient coherence tests.
+     *
+     * @param ontology
+     *            The ontology that all subsequent tests are subsets of.
+     */
+    protected void checkpoint(Ontology ontology) {
+        if (isRepaired instanceof CoherenceTest) {
+            ((CoherenceTest) isRepaired).initialize(ontology);
+        }
+    }
+
+    /**
+     * @return A predicate for testing whether an ontology is coherent.
+     */
+    protected static Predicate<Ontology> isCoherent() {
+        return new CoherenceTest();
+    }
 
     /**
      * @param isRepaired
@@ -86,6 +135,11 @@ public abstract class OntologyRepair implements OntologyModification {
     @Override
     public void apply(Ontology ontology) throws IllegalArgumentException {
         infoMessage("Checking precondition...");
+        checkpoint(ontology);
+        if (isRepaired(ontology)) {
+            infoMessage("The ontology is already repaired.");
+            return;
+        }
         try (var nonRefutable = ontology.clone()) {
             nonRefutable.removeAxioms(ontology.refutableAxioms());
             if (!isRepaired(nonRefutable)) {
