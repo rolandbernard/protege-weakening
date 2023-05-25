@@ -36,15 +36,14 @@ public class AxiomStrengthener extends AxiomRefinement {
         }
     }
 
-    private AxiomStrengthener(Covers covers, Cover upCover, Cover downCover,
-            Set<OWLObjectPropertyExpression> simpleRoles, int flags) {
+    private AxiomStrengthener(Cover upCover, Cover downCover, Set<OWLObjectPropertyExpression> simpleRoles, int flags) {
         super(new Visitor(new RefinementOperator(downCover, upCover, flags),
-                new RefinementOperator(upCover, downCover, flags), simpleRoles, flags), covers);
+                new RefinementOperator(upCover, downCover, flags), simpleRoles, flags));
     }
 
     private AxiomStrengthener(Covers covers, Set<OWLObjectPropertyExpression> simpleRoles, int flags,
             boolean uncached) {
-        this(covers, uncached ? covers.upCover() : covers.upCover().cached(),
+        this(uncached ? covers.upCover() : covers.upCover().cached(),
                 uncached ? covers.downCover() : covers.downCover().cached(), simpleRoles, flags);
     }
 
@@ -66,8 +65,9 @@ public class AxiomStrengthener extends AxiomRefinement {
     /**
      * @param refOntology
      *            The reference ontology to use for the up and down covers.
-     * @param simpleRoles
-     *            The roles that are guaranteed to be simple.
+     * @param fullOntology
+     *            The maximal ontology in which the weaker axioms will be
+     *            used in.
      * @param uncached
      *            Do not use any caching, always call the reasoner.
      */

@@ -100,14 +100,13 @@ public class AxiomWeakener extends AxiomRefinement {
         }
     }
 
-    private AxiomWeakener(Covers covers, Cover upCover, Cover downCover, Set<OWLObjectPropertyExpression> simpleRoles,
-            int flags) {
+    private AxiomWeakener(Cover upCover, Cover downCover, Set<OWLObjectPropertyExpression> simpleRoles, int flags) {
         super(new Visitor(new RefinementOperator(upCover, downCover, flags),
-                new RefinementOperator(downCover, upCover, flags), simpleRoles, flags), covers);
+                new RefinementOperator(downCover, upCover, flags), simpleRoles, flags));
     }
 
     private AxiomWeakener(Covers covers, Set<OWLObjectPropertyExpression> simpleRoles, int flags, boolean uncached) {
-        this(covers, uncached ? covers.upCover() : covers.upCover().cached(),
+        this(uncached ? covers.upCover() : covers.upCover().cached(),
                 uncached ? covers.downCover() : covers.downCover().cached(), simpleRoles, flags);
     }
 

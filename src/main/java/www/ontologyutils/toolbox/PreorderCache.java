@@ -30,7 +30,7 @@ public class PreorderCache<T> {
         possiblePredecessors = new HashMap<>();
     }
 
-    private void assureExistence(T elem) {
+    private synchronized void assureExistence(T elem) {
         if (!knownSuccessors.containsKey(elem)) {
             var existing = new HashSet<>(knownSuccessors.keySet());
             knownSuccessors.put(elem, new HashSet<>(Set.of(elem)));
@@ -50,7 +50,7 @@ public class PreorderCache<T> {
      * @param succ
      *            The element known to not be a successor of {@code pred}.
      */
-    protected void removePossibleSuccessors(T pred, T succ) {
+    protected synchronized void removePossibleSuccessors(T pred, T succ) {
         if (possibleSuccessors.get(pred).remove(succ)) {
             possiblePredecessors.get(succ).remove(pred);
             for (var pred2 : Utils.toArray(knownSuccessors.get(pred))) {
@@ -69,7 +69,7 @@ public class PreorderCache<T> {
      * @param succ
      *            The element known to be a successor of {@code pred}.
      */
-    protected void addKnownSuccessors(T pred, T succ) {
+    protected synchronized void addKnownSuccessors(T pred, T succ) {
         if (knownSuccessors.get(pred).add(succ)) {
             knownPredecessors.get(succ).add(pred);
             possibleSuccessors.get(pred).remove(succ);
@@ -125,75 +125,15 @@ public class PreorderCache<T> {
     }
 
     /**
-     * Precompute the complete preorder for the given domain and relation.
-     *
-     * @param domain
-     *            The domain for which to compute the order.
-     * @param order
-     *            The relation to be computed.
-     */
-    public void precomputeFor(Collection<T> domain, BiPredicate<T, T> order) {
-        setupDomain(domain);
-        for (var element : domain) {
-            possibleSuccessors.get(element).stream()
-                    .sorted((a, b) -> Integer.compare(knownPredecessors.get(b).size(), knownPredecessors.get(a).size()))
-                    .forEach(elem -> {
-                        computeIfAbsent(element, elem, order);
-                    });
-        }
-    }
-
-    /**
      * @param pred
      *            The element for which to find successors.
      * @return A stream of all known successors of {@code pred}.
      */
-    public Set<T> getKnownSuccessors(T pred) {
+    public synchronized List<T> knownStrictSuccessors(T pred) {
         assureExistence(pred);
-        return knownSuccessors.get(pred);
-    }
-
-    /**
-     * @param pred
-     *            The element for which to find successors.
-     * @return A stream of all possible, but not known, successors of {@code pred}.
-     */
-    public Set<T> getPossibleSuccessors(T pred) {
-        assureExistence(pred);
-        return possibleSuccessors.get(pred);
-    }
-
-    /**
-     * @param succ
-     *            The element for which to get predecessors.
-     * @return A stream of all known predecessors of {@code succ}.
-     */
-    public Set<T> getKnownPredecessors(T succ) {
-        assureExistence(succ);
-        return knownPredecessors.get(succ);
-    }
-
-    /**
-     * @param succ
-     *            The element for which to get predecessors.
-     * @return A stream of all possible, but not known, predecessors of
-     *         {@code succ}.
-     */
-    public Set<T> getPossiblePredecessors(T succ) {
-        assureExistence(succ);
-        return possiblePredecessors.get(succ);
-    }
-
-    /**
-     * @param pred
-     *            The element for which to find successors.
-     * @return A stream of all known successors of {@code pred}.
-     */
-    public Stream<T> knownStrictSuccessors(T pred) {
-        assureExistence(pred);
-        return knownSuccessors.get(pred).stream()
+        return Utils.toList(knownSuccessors.get(pred).stream()
                 .filter(succ -> !knownSuccessors.get(succ).contains(pred)
-                        && !possibleSuccessors.get(succ).contains(pred));
+                        && !possibleSuccessors.get(succ).contains(pred)));
     }
 
     /**
@@ -201,14 +141,14 @@ public class PreorderCache<T> {
      *            The element for which to find successors.
      * @return A stream of all possible, but not known, successors of {@code pred}.
      */
-    public Stream<T> possibleStrictSuccessors(T pred) {
+    public synchronized List<T> possibleStrictSuccessors(T pred) {
         assureExistence(pred);
-        return Stream.concat(
+        return Utils.toList(Stream.concat(
                 knownSuccessors.get(pred).stream()
                         .filter(succ -> !knownSuccessors.get(succ).contains(pred)
                                 && possibleSuccessors.get(succ).contains(pred)),
                 possibleSuccessors.get(pred).stream()
-                        .filter(succ -> !knownSuccessors.get(succ).contains(pred)));
+                        .filter(succ -> !knownSuccessors.get(succ).contains(pred))));
     }
 
     /**
@@ -216,11 +156,11 @@ public class PreorderCache<T> {
      *            The element for which to find predecessors.
      * @return A stream of all known predecessors of {@code succ}.
      */
-    public Stream<T> knownStrictPredecessors(T succ) {
+    public synchronized List<T> knownStrictPredecessors(T succ) {
         assureExistence(succ);
-        return knownPredecessors.get(succ).stream()
+        return Utils.toList(knownPredecessors.get(succ).stream()
                 .filter(pred -> !knownPredecessors.get(pred).contains(succ)
-                        && !possiblePredecessors.get(pred).contains(succ));
+                        && !possiblePredecessors.get(pred).contains(succ)));
     }
 
     /**
@@ -229,14 +169,14 @@ public class PreorderCache<T> {
      * @return A stream of all possible, but not known, predecessors of
      *         {@code succ}.
      */
-    public Stream<T> possibleStrictPredecessors(T succ) {
+    public synchronized List<T> possibleStrictPredecessors(T succ) {
         assureExistence(succ);
-        return Stream.concat(
+        return Utils.toList(Stream.concat(
                 knownPredecessors.get(succ).stream()
                         .filter(pred -> !knownPredecessors.get(pred).contains(succ)
                                 && possiblePredecessors.get(pred).contains(succ)),
                 possiblePredecessors.get(succ).stream()
-                        .filter(pred -> !knownPredecessors.get(pred).contains(succ)));
+                        .filter(pred -> !knownPredecessors.get(pred).contains(succ))));
     }
 
     /**
@@ -246,7 +186,7 @@ public class PreorderCache<T> {
      *            The possible successor.
      * @return True if {@code pred} is a predecessor of {@code succ}.
      */
-    public boolean isKnownSuccessor(T pred, T succ) {
+    public synchronized boolean isKnownSuccessor(T pred, T succ) {
         var set = knownSuccessors.get(pred);
         if (set == null) {
             return false;
@@ -261,7 +201,7 @@ public class PreorderCache<T> {
      *            The possible successor.
      * @return False if {@code pred} is not a predecessor of {@code succ}.
      */
-    public boolean isPossibleSuccessor(T pred, T succ) {
+    public synchronized boolean isPossibleSuccessor(T pred, T succ) {
         var set = possibleSuccessors.get(pred);
         if (set == null) {
             return true;
@@ -296,7 +236,7 @@ public class PreorderCache<T> {
      * @return True iff the relation contains a connection from {@code pred} to
      *         {@code succ}.
      */
-    public synchronized boolean computeIfAbsent(T pred, T succ, BiPredicate<T, T> order) {
+    public boolean computeIfAbsent(T pred, T succ, BiPredicate<T, T> order) {
         assureExistence(pred);
         assureExistence(succ);
         if (isKnownSuccessor(pred, succ)) {

@@ -1,6 +1,7 @@
 package www.ontologyutils.repair;
 
 import java.util.*;
+import java.util.concurrent.*;
 import java.util.function.*;
 import java.util.stream.Stream;
 
@@ -49,7 +50,7 @@ public class OntologyRepairMctsWeakening extends OntologyRepairBestOfKWeakening 
         private Function<Ontology, Double> quality;
 
         public Game(Ontology ontology, AxiomWeakener weakener, Function<Ontology, Double> quality) {
-            this.ontology = ontology.clone();
+            this.ontology = ontology.cloneWithSeparateCache();
             this.weakener = weakener;
             this.quality = quality;
             this.toWeaken = null;
@@ -154,20 +155,31 @@ public class OntologyRepairMctsWeakening extends OntologyRepairBestOfKWeakening 
         infoMessage("Selected a reference ontology with " + refAxioms.size() + " axioms.");
         var bestAxioms = new Set<?>[] { Set.of() };
         var bestQuality = new Double[] { Double.NEGATIVE_INFINITY };
-        try (var refOntology = ontology.cloneWithRefutable(refAxioms)) {
-            try (var axiomWeakener = new AxiomWeakener(refOntology, ontology)) {
-                var game = new Game(ontology, axiomWeakener, onto -> {
-                    var thisQuality = quality.apply(onto);
+        try (var refOntology = ontology.cloneWithRefutable(refAxioms).withSeparateCache()) {
+            var axiomWeakener = new AxiomWeakener(refOntology, ontology);
+            var game = new Game(ontology, axiomWeakener, onto -> {
+                var thisQuality = quality.apply(onto);
+                synchronized (bestQuality) {
                     if (thisQuality > bestQuality[0]) {
                         bestAxioms[0] = Utils.toSet(onto.axioms());
                         bestQuality[0] = thisQuality;
                     }
-                    return thisQuality;
-                });
-                try (var mcts = new Mcts<>(game)) {
-                    for (int i = 0; i < numberOfRounds; i++) {
+                }
+                return thisQuality;
+            });
+            try (var mcts = new Mcts<>(game)) {
+                var parallelism = Runtime.getRuntime().availableProcessors();
+                var executor = Executors.newFixedThreadPool(parallelism);
+                for (int i = 0; i < numberOfRounds; i++) {
+                    executor.execute(() -> {
                         mcts.runSimulation();
-                    }
+                    });
+                }
+                executor.shutdown();
+                try {
+                    executor.awaitTermination(Long.MAX_VALUE, TimeUnit.NANOSECONDS);
+                } catch (InterruptedException e) {
+                    throw new CanceledException();
                 }
             }
         }

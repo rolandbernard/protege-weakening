@@ -1,6 +1,7 @@
 package www.ontologyutils.toolbox;
 
 import java.util.*;
+import java.util.function.Supplier;
 import java.util.stream.Stream;
 
 /**
@@ -49,7 +50,7 @@ public class Mcts<M> implements AutoCloseable {
         public int visitCount;
         public double valueSum;
 
-        public double getValue() {
+        public synchronized double getValue() {
             if (visitCount != 0) {
                 return valueSum / visitCount;
             } else {
@@ -57,12 +58,16 @@ public class Mcts<M> implements AutoCloseable {
             }
         }
 
-        public void addVisit(double value) {
-            visitCount += 1;
+        public synchronized void addVirtualLoss() {
+            visitCount += virtualLoss;
+        }
+
+        public synchronized void addVisit(double value) {
+            visitCount += 1 - virtualLoss;
             valueSum += value;
         }
 
-        public double getScaledValue() {
+        public synchronized double getScaledValue() {
             if (minValue < maxValue) {
                 return (getValue() - minValue) / (maxValue - minValue);
             } else {
@@ -74,11 +79,17 @@ public class Mcts<M> implements AutoCloseable {
     private class Node extends NodeStats {
         public Map<M, Node> children;
 
-        public boolean isExpanded() {
+        public synchronized boolean isExpanded() {
             return children != null && !children.isEmpty();
         }
 
-        public void expand(Stream<M> moves) {
+        public synchronized void expand(Supplier<Stream<M>> moves) {
+            if (visitCount >= expThreshold) {
+                expand(moves.get());
+            }
+        }
+
+        public synchronized void expand(Stream<M> moves) {
             if (!isExpanded()) {
                 children = new HashMap<>();
                 moves.forEach(move -> {
@@ -87,7 +98,7 @@ public class Mcts<M> implements AutoCloseable {
             }
         }
 
-        public double raveContribution(M move, Node child) {
+        public synchronized double raveContribution(M move, Node child) {
             if (useRave()) {
                 var moveStats = getMoveStats(move);
                 return ((double) moveStats.visitCount) / ((double) child.visitCount + (double) moveStats.visitCount
@@ -97,7 +108,7 @@ public class Mcts<M> implements AutoCloseable {
             }
         }
 
-        public double getUcbScore(M move, Node child) {
+        public synchronized double getUcbScore(M move, Node child) {
             double countScore = expConstant;
             if (visitCount != 0) {
                 countScore *= Math.sqrt(Math.log(visitCount) / child.visitCount);
@@ -112,7 +123,7 @@ public class Mcts<M> implements AutoCloseable {
             return countScore + valueScore;
         }
 
-        public Map.Entry<M, Node> selectChild() {
+        public synchronized Map.Entry<M, Node> selectChild() {
             return children.entrySet().stream()
                     .max(Comparator.comparingDouble(
                             e -> getUcbScore(e.getKey(), e.getValue())))
@@ -123,6 +134,7 @@ public class Mcts<M> implements AutoCloseable {
     private double expConstant;
     private int expThreshold;
     private double raveBalance;
+    private int virtualLoss;
 
     private Game<M> game;
     private Node root;
@@ -142,7 +154,7 @@ public class Mcts<M> implements AutoCloseable {
      *            The balance factor for the RAVE heuristic. Use NaN to not use
      *            RAVE.
      */
-    public Mcts(Game<M> game, double expConstant, int expThreshold, double raveBalance) {
+    public Mcts(Game<M> game, double expConstant, int expThreshold, double raveBalance, int virtualLoss) {
         this.expConstant = expConstant;
         this.expThreshold = expThreshold;
         this.raveBalance = raveBalance;
@@ -152,6 +164,7 @@ public class Mcts<M> implements AutoCloseable {
         this.moves = new HashMap<>();
         this.minValue = Double.POSITIVE_INFINITY;
         this.maxValue = Double.NEGATIVE_INFINITY;
+        this.virtualLoss = virtualLoss;
     }
 
     /**
@@ -159,14 +172,14 @@ public class Mcts<M> implements AutoCloseable {
      *            The game to search.
      */
     public Mcts(Game<M> game) {
-        this(game, 1.5, 0, 1);
+        this(game, 1.5, 0, 1, 5);
     }
 
     private boolean useRave() {
         return !Double.isNaN(raveBalance);
     }
 
-    private NodeStats getMoveStats(M move) {
+    private synchronized NodeStats getMoveStats(M move) {
         return moves.computeIfAbsent(move, m -> new NodeStats());
     }
 
@@ -203,12 +216,11 @@ public class Mcts<M> implements AutoCloseable {
             while (node.isExpanded()) {
                 var actionNode = node.selectChild();
                 node = actionNode.getValue();
+                node.addVirtualLoss();
                 searchGame.performMove(actionNode.getKey());
                 searchPath.add(actionNode);
             }
-            if (node.visitCount >= expThreshold) {
-                node.expand(searchGame.possibleMoves());
-            }
+            node.expand(() -> searchGame.possibleMoves());
             var value = rollout(searchGame);
             backpropagate(searchPath, value);
         }
@@ -220,7 +232,7 @@ public class Mcts<M> implements AutoCloseable {
      * @param move
      *            The move to perform.
      */
-    public void performMove(M move) {
+    public synchronized void performMove(M move) {
         game.performMove(move);
         root = root.children.get(move);
         root.expand(game.possibleMoves());
@@ -229,7 +241,7 @@ public class Mcts<M> implements AutoCloseable {
     /**
      * @return The current map from moves to visit count.
      */
-    public Map<M, Integer> getRootCounts() {
+    public synchronized Map<M, Integer> getRootCounts() {
         var result = new HashMap<M, Integer>();
         root.children.forEach((move, node) -> {
             result.put(move, node.visitCount);
@@ -240,7 +252,7 @@ public class Mcts<M> implements AutoCloseable {
     /**
      * @return The current map from moves to node value.
      */
-    public Map<M, Double> getRootValues() {
+    public synchronized Map<M, Double> getRootValues() {
         var result = new HashMap<M, Double>();
         root.children.forEach((move, node) -> {
             result.put(move, node.getValue());
@@ -249,7 +261,7 @@ public class Mcts<M> implements AutoCloseable {
     }
 
     @Override
-    public void close() {
+    public synchronized void close() {
         game.close();
     }
 }

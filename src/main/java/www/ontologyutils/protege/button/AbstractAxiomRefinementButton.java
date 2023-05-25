@@ -49,13 +49,12 @@ public abstract class AbstractAxiomRefinementButton extends MListButton {
                 // Remove the axiom before weakening, because otherwise the weakening assumes
                 // the axiom holds.
                 refOntology.removeAxioms(axiom);
-                try (var refinement = getRefinement(refOntology, ontology)) {
-                    var newAxiom = selectFromOptions(refinement.refineAxioms(axiom));
-                    if (newAxiom == null) {
-                        return;
-                    }
-                    ontology.replaceAxiom(axiom, newAxiom);
+                var refinement = getRefinement(refOntology, ontology);
+                var newAxiom = selectFromOptions(refinement.refineAxioms(axiom));
+                if (newAxiom == null) {
+                    return;
                 }
+                ontology.replaceAxiom(axiom, newAxiom);
             }
             ontology.applyChangesTo(owlOntology);
         }

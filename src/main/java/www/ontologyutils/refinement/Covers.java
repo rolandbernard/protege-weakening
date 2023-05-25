@@ -1,11 +1,10 @@
 package www.ontologyutils.refinement;
 
-import java.util.Set;
+import java.util.*;
 import java.util.function.Function;
 import java.util.stream.*;
 
 import org.semanticweb.owlapi.model.*;
-import org.semanticweb.owlapi.reasoner.OWLReasoner;
 
 import www.ontologyutils.toolbox.*;
 
@@ -22,7 +21,7 @@ import www.ontologyutils.toolbox.*;
  * presented in Confalonieri, R., Galliani, P., Kutz, O., Porello, D., Righetti,
  * G., &amp; Toquard, N. (2020). Towards even more irresistible axiom weakening.
  */
-public class Covers implements AutoCloseable {
+public class Covers {
     /**
      * Class representing a single cover direction. Contains functions for concepts,
      * roles, and integers.
@@ -90,7 +89,6 @@ public class Covers implements AutoCloseable {
     private Ontology refOntology;
     private Set<OWLClassExpression> subConcepts;
     private Set<OWLObjectPropertyExpression> simpleRoles;
-    private OWLReasoner reasoner;
     private PreorderCache<OWLClassExpression> isSubClass;
     private PreorderCache<OWLObjectPropertyExpression> isSubRole;
 
@@ -126,7 +124,6 @@ public class Covers implements AutoCloseable {
             boolean uncached) {
         df = Ontology.getDefaultDataFactory();
         this.refOntology = refOntology;
-        this.reasoner = refOntology.getOwlReasoner();
         this.subConcepts = subConcepts;
         this.simpleRoles = simpleRoles;
         if (!uncached) {
@@ -146,12 +143,8 @@ public class Covers implements AutoCloseable {
      *         {@code subclass} is a subclass of {@code superclass}.
      */
     private boolean uncachedIsSubClass(OWLClassExpression subClass, OWLClassExpression superClass) {
-        if (Thread.interrupted()) {
-            throw new CanceledException();
-        }
         var testAxiom = df.getOWLSubClassOfAxiom(subClass, superClass);
-        Ontology.reasonerCalls += 1;
-        return reasoner.isEntailed(testAxiom);
+        return refOntology.isEntailed(testAxiom);
     }
 
     /**
@@ -179,12 +172,8 @@ public class Covers implements AutoCloseable {
      *         {@code subRole} is subsumed by {@code superRole}.
      */
     private boolean uncachedIsSubRole(OWLObjectPropertyExpression subRole, OWLObjectPropertyExpression superRole) {
-        if (Thread.interrupted()) {
-            throw new CanceledException();
-        }
         var testAxiom = df.getOWLSubObjectPropertyOfAxiom(subRole, superRole);
-        Ontology.reasonerCalls += 1;
-        return reasoner.isEntailed(testAxiom);
+        return refOntology.isEntailed(testAxiom);
     }
 
     /**
@@ -230,14 +219,10 @@ public class Covers implements AutoCloseable {
             return false;
         } else if (isSubClass != null) {
             return !Stream.concat(
-                    isSubClass.knownStrictPredecessors(candidate)
+                    isSubClass.knownStrictPredecessors(candidate).stream()
                             .filter(other -> subConcepts.contains(other)),
-                    isSubClass.possibleStrictPredecessors(candidate)
-                            .sorted((a, b) -> Integer.compare(isSubClass.getKnownSuccessors(b).size(),
-                                    isSubClass.getKnownSuccessors(a).size()))
+                    isSubClass.possibleStrictPredecessors(candidate).stream()
                             .filter(other -> subConcepts.contains(other) && isStrictSubClass(other, candidate)))
-                    .sorted((a, b) -> Integer.compare(isSubClass.getKnownPredecessors(b).size(),
-                            isSubClass.getKnownPredecessors(a).size()))
                     .anyMatch(other -> isStrictSubClass(concept, other));
         } else {
             return !subConcepts.stream()
@@ -269,14 +254,10 @@ public class Covers implements AutoCloseable {
             return false;
         } else if (isSubClass != null) {
             return !Stream.concat(
-                    isSubClass.knownStrictSuccessors(candidate)
+                    isSubClass.knownStrictSuccessors(candidate).stream()
                             .filter(other -> subConcepts.contains(other)),
-                    isSubClass.possibleStrictSuccessors(candidate)
-                            .sorted((a, b) -> Integer.compare(isSubClass.getKnownPredecessors(b).size(),
-                                    isSubClass.getKnownPredecessors(a).size()))
+                    isSubClass.possibleStrictSuccessors(candidate).stream()
                             .filter(other -> subConcepts.contains(other) && isStrictSubClass(candidate, other)))
-                    .sorted((a, b) -> Integer.compare(isSubClass.getKnownSuccessors(b).size(),
-                            isSubClass.getKnownSuccessors(a).size()))
                     .anyMatch(other -> isStrictSubClass(other, concept));
         } else {
             return !subConcepts.stream()
@@ -321,15 +302,11 @@ public class Covers implements AutoCloseable {
             return false;
         } else if (isSubClass != null) {
             return !Stream.concat(
-                    isSubRole.knownStrictPredecessors(candidate)
+                    isSubRole.knownStrictPredecessors(candidate).stream()
                             .filter(other -> simpleRoles.contains(other)),
-                    isSubRole.possibleStrictPredecessors(candidate)
-                            .sorted((a, b) -> Integer.compare(isSubRole.getKnownSuccessors(b).size(),
-                                    isSubRole.getKnownSuccessors(a).size()))
+                    isSubRole.possibleStrictPredecessors(candidate).stream()
                             .filter(other -> simpleRoles.contains(other)
                                     && isStrictSubRole(other, candidate)))
-                    .sorted((a, b) -> Integer.compare(isSubRole.getKnownPredecessors(b).size(),
-                            isSubRole.getKnownPredecessors(a).size()))
                     .anyMatch(other -> isStrictSubRole(role, other));
         } else {
             return !simpleRoles.stream()
@@ -359,15 +336,11 @@ public class Covers implements AutoCloseable {
             return false;
         } else if (isSubClass != null) {
             return !Stream.concat(
-                    isSubRole.knownStrictSuccessors(candidate)
+                    isSubRole.knownStrictSuccessors(candidate).stream()
                             .filter(other -> simpleRoles.contains(other)),
-                    isSubRole.possibleStrictSuccessors(candidate)
-                            .sorted((a, b) -> Integer.compare(isSubRole.getKnownPredecessors(b).size(),
-                                    isSubRole.getKnownPredecessors(a).size()))
+                    isSubRole.possibleStrictSuccessors(candidate).stream()
                             .filter(other -> simpleRoles.contains(other)
                                     && isStrictSubRole(candidate, other)))
-                    .sorted((a, b) -> Integer.compare(isSubRole.getKnownSuccessors(b).size(),
-                            isSubRole.getKnownSuccessors(a).size()))
                     .anyMatch(other -> isStrictSubRole(other, role));
         } else {
             return !simpleRoles.stream()
@@ -418,13 +391,5 @@ public class Covers implements AutoCloseable {
      */
     public Cover downCover() {
         return new Cover(this::downCover, this::downCover, this::downCover);
-    }
-
-    @Override
-    public void close() {
-        if (reasoner != null) {
-            refOntology.disposeOwlReasoner(reasoner);
-            reasoner = null;
-        }
     }
 }

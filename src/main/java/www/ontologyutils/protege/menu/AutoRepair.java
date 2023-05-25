@@ -1,5 +1,7 @@
 package www.ontologyutils.protege.menu;
 
+import java.io.*;
+
 import javax.swing.*;
 
 import www.ontologyutils.protege.progress.ProgressWindow;
@@ -28,8 +30,11 @@ public abstract class AutoRepair extends MutationAction {
             }
             return true;
         } catch (Exception e) {
+            StringWriter sw = new StringWriter();
+            PrintWriter pw = new PrintWriter(sw);
+            e.printStackTrace(pw);
             SwingUtilities.invokeLater(() -> {
-                JOptionPane.showMessageDialog(getOWLWorkspace(), e.getMessage(), "Repair failed",
+                JOptionPane.showMessageDialog(getOWLWorkspace(), sw.toString(), "Repair failed",
                         JOptionPane.ERROR_MESSAGE);
             });
             return false;

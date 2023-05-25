@@ -244,20 +244,19 @@ public class OntologyRepairWeakening extends OntologyRepair {
     public void repair(Ontology ontology) {
         var refAxioms = Utils.randomChoice(getRefAxioms(ontology));
         infoMessage("Selected a reference ontology with " + refAxioms.size() + " axioms.");
-        try (var refOntology = ontology.cloneWithRefutable(refAxioms)) {
-            try (var axiomWeakener = new AxiomWeakener(refOntology, ontology)) {
-                while (!isRepaired(ontology)) {
-                    var badAxioms = Utils.toList(findBadAxioms(ontology));
-                    infoMessage("Found " + badAxioms.size() + " possible bad axioms.");
-                    var badAxiom = Utils.randomChoice(badAxioms);
-                    infoMessage("Selected the bad axiom " + Utils.prettyPrintAxiom(badAxiom) + ".");
-                    var weakerAxioms = Utils.toList(axiomWeakener.weakerAxioms(badAxiom));
-                    infoMessage("Found " + weakerAxioms.size() + " weaker axioms.");
-                    var weakerAxiom = Utils.randomChoice(weakerAxioms);
-                    infoMessage("Selected the weaker axiom " + Utils.prettyPrintAxiom(weakerAxiom) + ".");
-                    ontology.replaceAxiom(badAxiom, weakerAxiom);
-                    checkpoint(ontology);
-                }
+        try (var refOntology = ontology.cloneWithRefutable(refAxioms).withSeparateCache()) {
+            var axiomWeakener = new AxiomWeakener(refOntology, ontology);
+            while (!isRepaired(ontology)) {
+                var badAxioms = Utils.toList(findBadAxioms(ontology));
+                infoMessage("Found " + badAxioms.size() + " possible bad axioms.");
+                var badAxiom = Utils.randomChoice(badAxioms);
+                infoMessage("Selected the bad axiom " + Utils.prettyPrintAxiom(badAxiom) + ".");
+                var weakerAxioms = Utils.toList(axiomWeakener.weakerAxioms(badAxiom));
+                infoMessage("Found " + weakerAxioms.size() + " weaker axioms.");
+                var weakerAxiom = Utils.randomChoice(weakerAxioms);
+                infoMessage("Selected the weaker axiom " + Utils.prettyPrintAxiom(weakerAxiom) + ".");
+                ontology.replaceAxiom(badAxiom, weakerAxiom);
+                checkpoint(ontology);
             }
         }
     }
