@@ -62,8 +62,12 @@ public class Mcts<M> implements AutoCloseable {
             visitCount += virtualLoss;
         }
 
+        public synchronized void removeVirtualLoss() {
+            visitCount -= virtualLoss;
+        }
+
         public synchronized void addVisit(double value) {
-            visitCount += 1 - virtualLoss;
+            visitCount += 1;
             valueSum += value;
         }
 
@@ -153,6 +157,9 @@ public class Mcts<M> implements AutoCloseable {
      * @param raveBalance
      *            The balance factor for the RAVE heuristic. Use NaN to not use
      *            RAVE.
+     * @param virtualLoss
+     *            The temporary loss applied for discouraging multiple threads from
+     *            exploring the same path.
      */
     public Mcts(Game<M> game, double expConstant, int expThreshold, double raveBalance, int virtualLoss) {
         this.expConstant = expConstant;
@@ -201,6 +208,7 @@ public class Mcts<M> implements AutoCloseable {
                 getMoveStats(step.getKey()).addVisit(value);
             }
             step.getValue().addVisit(value);
+            step.getValue().removeVirtualLoss();
         }
         root.addVisit(value);
     }

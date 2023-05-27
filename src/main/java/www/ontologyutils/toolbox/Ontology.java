@@ -661,7 +661,7 @@ public class Ontology implements AutoCloseable {
      * @return true if the ontology is coherent, false otherwise.
      */
     public boolean isCoherent() {
-        return isConsistent() && isSatisfiable(conceptsInSignature().toArray(n -> new OWLClass[n]));
+        return isConsistent() && withReasonerDo(reasoner -> reasoner.getBottomClassNode().isSingleton());
     }
 
     /**
@@ -692,19 +692,26 @@ public class Ontology implements AutoCloseable {
     }
 
     /**
+     * @param concept
+     *            The concept to test.
+     * @return true if the concept is satisfiable.
+     */
+    public boolean isSatisfiable(OWLClassExpression concept) {
+        return withReasonerDo(reasoner -> reasoner.isSatisfiable(concept));
+    }
+
+    /**
      * @param concepts
      *            The concepts to test.
      * @return true if the concept is satisfiable.
      */
     public boolean isSatisfiable(OWLClassExpression... concepts) {
-        return withReasonerDo(reasoner -> {
-            for (var concept : concepts) {
-                if (!reasoner.isSatisfiable(concept)) {
-                    return false;
-                }
+        for (var concept : concepts) {
+            if (!isSatisfiable(concept)) {
+                return false;
             }
-            return true;
-        });
+        }
+        return true;
     }
 
     /**

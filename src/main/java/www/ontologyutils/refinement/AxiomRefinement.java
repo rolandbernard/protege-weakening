@@ -1,6 +1,6 @@
 package www.ontologyutils.refinement;
 
-import java.util.Set;
+import java.util.*;
 import java.util.stream.*;
 
 import org.semanticweb.owlapi.model.*;
@@ -38,6 +38,12 @@ public abstract class AxiomRefinement {
      * Accept only axioms that have direct equivalents in SROIQ.
      */
     public static final int FLAG_SROIQ_STRICT = 1 << 2;
+    /**
+     * Treat intersection and union operands as lists and allow singleton sets.
+     * Inverse of what we have in ontologyutils, because the api accepts only sets,
+     * unlike in ontologyutils where we use OWL API version 5.
+     */
+    public static final int FLAG_OWL2_SINGLE_OPERANDS = 1 << 3;
 
     /**
      * Visitor implementing the actual weakening.
@@ -163,8 +169,18 @@ public abstract class AxiomRefinement {
             var concepts = axiom.getClassExpressionsAsList();
             return IntStream.range(0, concepts.size()).mapToObj(i -> i)
                     .flatMap(i -> down.refine(concepts.get(i))
-                            .map(refined -> df.getOWLDisjointClassesAxiom(
-                                    Utils.toSet(Utils.replaceInList(concepts, i, refined)))));
+                            .map(refined -> {
+                                var newConceptsList = Utils.replaceInList(concepts, i, refined);
+                                var newConceptsSet = new LinkedHashSet<OWLClassExpression>();
+                                for (var concept : newConceptsList) {
+                                    while (!newConceptsSet.add(concept)) {
+                                        // This is a duplicate created by the refinement. Since this is unfortunately
+                                        // not allowed in OWL 2, we use this stupid hack.
+                                        concept = concept.getObjectComplementOf().getObjectComplementOf();
+                                    }
+                                }
+                                return df.getOWLDisjointClassesAxiom(newConceptsSet);
+                            }));
         }
 
         @Override
@@ -215,7 +231,7 @@ public abstract class AxiomRefinement {
                     IntStream.range(0, chain.size()).mapToObj(i -> i)
                             .flatMap(i -> down.refine(chain.get(i))
                                     .map(role -> df.getOWLSubPropertyChainOfAxiom(
-                                            Utils.toList(Utils.replaceInList(chain, i, role)),
+                                            Utils.replaceInList(chain, i, role),
                                             axiom.getSuperProperty()))));
         }
 
@@ -230,8 +246,18 @@ public abstract class AxiomRefinement {
             return Stream.concat(Stream.of(noopAxiom()),
                     IntStream.range(0, properties.size()).mapToObj(i -> i)
                             .flatMap(i -> down.refine(properties.get(i))
-                                    .map(role -> df.getOWLDisjointObjectPropertiesAxiom(
-                                            Utils.toSet(Utils.replaceInList(properties, i, role))))));
+                                    .map(refined -> {
+                                        var newRolesList = Utils.replaceInList(properties, i, refined);
+                                        var newRolesSet = new LinkedHashSet<OWLObjectPropertyExpression>();
+                                        for (var role : newRolesList) {
+                                            while (!newRolesSet.add(role)) {
+                                                // This is a duplicate created by the refinement. Since this is
+                                                // unfortunately not allowed in OWL 2, we use this stupid hack.
+                                                role = role.getInverseProperty().getInverseProperty();
+                                            }
+                                        }
+                                        return df.getOWLDisjointObjectPropertiesAxiom(newRolesSet);
+                                    })));
         }
 
         @Override

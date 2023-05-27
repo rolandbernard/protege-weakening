@@ -48,7 +48,7 @@ public class OntologyRepairBestMcs extends OntologyRepairRandomMcs {
      *         ontology coherent.
      */
     public static OntologyRepair forCoherence() {
-        return new OntologyRepairBestMcs(isCoherent());
+        return new OntologyRepairBestMcs(Ontology::isCoherent);
     }
 
     @Override

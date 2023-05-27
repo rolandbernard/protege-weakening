@@ -114,9 +114,9 @@ public final class Utils {
      * @return A stream that contains all elements in {@code list} but the one at
      *         {@code idx} which is replace by {@code value}.
      */
-    public static <T> Stream<T> replaceInList(List<T> list, int idx, T value) {
-        return IntStream.range(0, list.size()).mapToObj(j -> j)
-                .map(j -> idx == j ? value : list.get(j));
+    public static <T> List<T> replaceInList(List<T> list, int idx, T value) {
+        return toList(IntStream.range(0, list.size()).mapToObj(j -> j)
+                .map(j -> idx == j ? value : list.get(j)));
     }
 
     /**

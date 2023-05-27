@@ -145,7 +145,7 @@ public class OntologyRepairMctsWeakening extends OntologyRepairBestOfKWeakening 
      *         make the ontology coherent.
      */
     public static OntologyRepair forCoherence(int numberOfRounds) {
-        return new OntologyRepairMctsWeakening(isCoherent(), numberOfRounds);
+        return new OntologyRepairMctsWeakening(Ontology::isCoherent, numberOfRounds);
     }
 
     @Override

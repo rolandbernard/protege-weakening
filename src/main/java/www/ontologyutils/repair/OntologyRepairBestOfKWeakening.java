@@ -71,7 +71,7 @@ public class OntologyRepairBestOfKWeakening extends OntologyRepairWeakening {
      *         make the ontology coherent.
      */
     public static OntologyRepair forCoherence(int numberOfRounds) {
-        return new OntologyRepairBestOfKWeakening(isCoherent(), numberOfRounds);
+        return new OntologyRepairBestOfKWeakening(Ontology::isCoherent, numberOfRounds);
     }
 
     @Override
