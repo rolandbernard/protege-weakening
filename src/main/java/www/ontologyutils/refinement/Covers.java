@@ -29,21 +29,26 @@ public class Covers {
     public static class Cover {
         private Function<OWLClassExpression, Stream<OWLClassExpression>> conceptCover;
         private Function<OWLObjectPropertyExpression, Stream<OWLObjectPropertyExpression>> roleCover;
+        private Function<OWLObjectPropertyExpression, Stream<OWLObjectPropertyExpression>> nonSimpleRoleCover;
         private Function<Integer, Stream<Integer>> intCover;
 
         /**
          * @param conceptCover
          *            The concept function of this cover.
          * @param roleCover
-         *            The role function of this cover.
+         *            The (simple) role function of this cover.
+         * @param nonSimpleRoleCover
+         *            The (non-simple) role function of this cover.
          * @param intCover
          *            The integer function of the over.
          */
         public Cover(Function<OWLClassExpression, Stream<OWLClassExpression>> conceptCover,
                 Function<OWLObjectPropertyExpression, Stream<OWLObjectPropertyExpression>> roleCover,
+                Function<OWLObjectPropertyExpression, Stream<OWLObjectPropertyExpression>> nonSimpleRoleCover,
                 Function<Integer, Stream<Integer>> intCover) {
             this.conceptCover = conceptCover;
             this.roleCover = roleCover;
+            this.nonSimpleRoleCover = nonSimpleRoleCover;
             this.intCover = intCover;
         }
 
@@ -54,6 +59,7 @@ public class Covers {
             return new Cover(
                     LruCache.wrapStreamFunction(conceptCover, Integer.MAX_VALUE),
                     LruCache.wrapStreamFunction(roleCover, Integer.MAX_VALUE),
+                    LruCache.wrapStreamFunction(nonSimpleRoleCover, Integer.MAX_VALUE),
                     LruCache.wrapStreamFunction(intCover, Integer.MAX_VALUE));
         }
 
@@ -69,10 +75,14 @@ public class Covers {
         /**
          * @param role
          *            The role for which to compute the cover.
+         * @param simple
+         *            Whether to return only simple roles. See
+         *            {@link Covers#upCover(OWLObjectPropertyExpression, boolean)} and
+         *            {@link Covers#downCover(OWLObjectPropertyExpression, boolean)}}.
          * @return The stream containing all elements of the cover.
          */
-        public Stream<OWLObjectPropertyExpression> apply(OWLObjectPropertyExpression role) {
-            return roleCover.apply(role);
+        public Stream<OWLObjectPropertyExpression> apply(OWLObjectPropertyExpression role, boolean simple) {
+            return simple ? roleCover.apply(role) : nonSimpleRoleCover.apply(role);
         }
 
         /**
@@ -88,6 +98,7 @@ public class Covers {
     private OWLDataFactory df;
     private Ontology refOntology;
     private Set<OWLClassExpression> subConcepts;
+    private Set<OWLObjectPropertyExpression> subRoles;
     private Set<OWLObjectPropertyExpression> simpleRoles;
     private PreorderCache<OWLClassExpression> isSubClass;
     private PreorderCache<OWLObjectPropertyExpression> isSubRole;
@@ -99,38 +110,26 @@ public class Covers {
      *            The ontology used for entailment check.
      * @param subConcepts
      *            Return only concepts that are in this set.
-     * @param simpleRoles
+     * @param subRoles
      *            Return only roles that are in this set.
-     */
-    public Covers(Ontology refOntology, Set<OWLClassExpression> subConcepts,
-            Set<OWLObjectPropertyExpression> simpleRoles) {
-        this(refOntology, subConcepts, simpleRoles, false);
-    }
-
-    /**
-     * Creates a new {@code Cover} object for the given reference object.
-     *
-     * @param refOntology
-     *            The ontology used for entailment check.
-     * @param subConcepts
-     *            Return only concepts that are in this set.
      * @param simpleRoles
-     *            Return only roles that are in this set.
+     *            Return only roles that are in this set if asked for simple roles
+     *            covers.
      * @param uncached
      *            If true, no subclass relation cache will be created.
      */
-    public Covers(Ontology refOntology, Set<OWLClassExpression> subConcepts,
-            Set<OWLObjectPropertyExpression> simpleRoles,
-            boolean uncached) {
+    public Covers(Ontology refOntology, Set<OWLClassExpression> subConcepts, Set<OWLObjectPropertyExpression> subRoles,
+            Set<OWLObjectPropertyExpression> simpleRoles, boolean uncached) {
         df = Ontology.getDefaultDataFactory();
         this.refOntology = refOntology;
         this.subConcepts = subConcepts;
+        this.subRoles = subRoles;
         this.simpleRoles = simpleRoles;
         if (!uncached) {
             this.isSubClass = new SubClassCache();
             this.isSubClass.setupDomain(subConcepts);
             this.isSubRole = new SubRoleCache();
-            this.isSubRole.setupDomain(simpleRoles);
+            this.isSubRole.setupDomain(subRoles);
         }
     }
 
@@ -297,19 +296,20 @@ public class Covers {
      *            The role for which to check whether it is in the upward cover.
      * @return True iff {@code candidate} is in the upward cover of {@code role}.
      */
-    private boolean isInUpCover(OWLObjectPropertyExpression role, OWLObjectPropertyExpression candidate) {
-        if (!simpleRoles.contains(candidate) || !isSubRole(role, candidate)) {
+    private boolean isInUpCover(OWLObjectPropertyExpression role, OWLObjectPropertyExpression candidate,
+            Set<OWLObjectPropertyExpression> roles) {
+        if (!roles.contains(candidate) || !isSubRole(role, candidate)) {
             return false;
         } else if (isSubClass != null) {
             return !Stream.concat(
                     isSubRole.knownStrictPredecessors(candidate).stream()
-                            .filter(other -> simpleRoles.contains(other)),
+                            .filter(other -> roles.contains(other)),
                     isSubRole.possibleStrictPredecessors(candidate).stream()
-                            .filter(other -> simpleRoles.contains(other)
+                            .filter(other -> roles.contains(other)
                                     && isStrictSubRole(other, candidate)))
                     .anyMatch(other -> isStrictSubRole(role, other));
         } else {
-            return !simpleRoles.stream()
+            return !roles.stream()
                     .anyMatch(other -> isStrictSubRole(other, candidate) && isStrictSubRole(role, other));
         }
     }
@@ -317,10 +317,15 @@ public class Covers {
     /**
      * @param role
      *            The role for which to compute the upward cover.
+     * @param simple
+     *            Whether to return only simple roles. This is more than just a
+     *            filter applied to the output, but also affects the test of whether
+     *            there exist more specific generalizations.
      * @return All role that are in the upward cover of {@code role}.
      */
-    public Stream<OWLObjectPropertyExpression> upCover(OWLObjectPropertyExpression role) {
-        return simpleRoles.stream().filter(candidate -> isInUpCover(role, candidate));
+    public Stream<OWLObjectPropertyExpression> upCover(OWLObjectPropertyExpression role, boolean simple) {
+        var allowedRoles = simple ? simpleRoles : subRoles;
+        return allowedRoles.stream().filter(candidate -> isInUpCover(role, candidate, allowedRoles));
     }
 
     /**
@@ -331,19 +336,20 @@ public class Covers {
      * @return True iff {@code candidate} is in the downward cover of
      *         {@code role}.
      */
-    private boolean isInDownCover(OWLObjectPropertyExpression role, OWLObjectPropertyExpression candidate) {
-        if (!simpleRoles.contains(candidate) || !isSubRole(candidate, role)) {
+    private boolean isInDownCover(OWLObjectPropertyExpression role, OWLObjectPropertyExpression candidate,
+            Set<OWLObjectPropertyExpression> roles) {
+        if (!roles.contains(candidate) || !isSubRole(candidate, role)) {
             return false;
         } else if (isSubClass != null) {
             return !Stream.concat(
                     isSubRole.knownStrictSuccessors(candidate).stream()
-                            .filter(other -> simpleRoles.contains(other)),
+                            .filter(other -> roles.contains(other)),
                     isSubRole.possibleStrictSuccessors(candidate).stream()
-                            .filter(other -> simpleRoles.contains(other)
+                            .filter(other -> roles.contains(other)
                                     && isStrictSubRole(candidate, other)))
                     .anyMatch(other -> isStrictSubRole(other, role));
         } else {
-            return !simpleRoles.stream()
+            return !roles.stream()
                     .anyMatch(other -> isStrictSubRole(candidate, other) && isStrictSubRole(other, role));
         }
     }
@@ -351,10 +357,15 @@ public class Covers {
     /**
      * @param role
      *            The role to compute the downward cover for.
+     * @param simple
+     *            Whether to return only simple roles. This is more than just a
+     *            filter applied to the output, but also affects the test of whether
+     *            there exist more general specializations.
      * @return All roles that are in the downward cover of {@code role}.
      */
-    public Stream<OWLObjectPropertyExpression> downCover(OWLObjectPropertyExpression role) {
-        return simpleRoles.stream().filter(candidate -> isInDownCover(role, candidate));
+    public Stream<OWLObjectPropertyExpression> downCover(OWLObjectPropertyExpression role, boolean simple) {
+        var allowedRoles = simple ? simpleRoles : subRoles;
+        return allowedRoles.stream().filter(candidate -> isInDownCover(role, candidate, allowedRoles));
     }
 
     /**
@@ -383,13 +394,13 @@ public class Covers {
      * @return The upward cover, containing concept, role, and number covers.
      */
     public Cover upCover() {
-        return new Cover(this::upCover, this::upCover, this::upCover);
+        return new Cover(this::upCover, r -> this.upCover(r, true), r -> this.upCover(r, false), this::upCover);
     }
 
     /**
      * @return The downward cover, containing concept, role, and number covers.
      */
     public Cover downCover() {
-        return new Cover(this::downCover, this::downCover, this::downCover);
+        return new Cover(this::downCover, r -> this.downCover(r, true), r -> this.downCover(r, false), this::downCover);
     }
 }

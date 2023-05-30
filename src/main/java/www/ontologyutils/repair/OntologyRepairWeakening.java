@@ -81,6 +81,10 @@ public class OntologyRepairWeakening extends OntologyRepair {
          */
         IN_ONE_MUS,
         /**
+         * Select any random axiom that is in the most minimal unsatisfiable subset.
+         */
+        IN_MOST_MUS,
+        /**
          * Select any random axiom that is not in some maximal consistent subset.
          */
         NOT_IN_ONE_MCS
@@ -88,6 +92,7 @@ public class OntologyRepairWeakening extends OntologyRepair {
 
     private RefOntologyStrategy refOntologySource;
     private BadAxiomStrategy badAxiomSource;
+    private int weakeningFlags;
 
     /**
      * @param isRepaired
@@ -96,12 +101,15 @@ public class OntologyRepairWeakening extends OntologyRepair {
      *            The strategy for computing the reference ontology.
      * @param badAxiomSource
      *            The strategy for computing bad axioms.
+     * @param weakeningFlags
+     *            The flags to use for weakening
      */
     public OntologyRepairWeakening(Predicate<Ontology> isRepaired, RefOntologyStrategy refOntologySource,
-            BadAxiomStrategy badAxiomSource) {
+            BadAxiomStrategy badAxiomSource, int weakeningFlags) {
         super(isRepaired);
         this.refOntologySource = refOntologySource;
         this.badAxiomSource = badAxiomSource;
+        this.weakeningFlags = weakeningFlags;
     }
 
     /**
@@ -109,7 +117,7 @@ public class OntologyRepairWeakening extends OntologyRepair {
      *            The monotone predicate testing whether an ontology is repaired.
      */
     public OntologyRepairWeakening(Predicate<Ontology> isRepaired) {
-        this(isRepaired, RefOntologyStrategy.SOME_MCS, BadAxiomStrategy.IN_SOME_MUS);
+        this(isRepaired, RefOntologyStrategy.ONE_MCS, BadAxiomStrategy.IN_SOME_MUS, AxiomWeakener.FLAG_DEFAULT);
     }
 
     /**
@@ -146,6 +154,17 @@ public class OntologyRepairWeakening extends OntologyRepair {
      */
     public static OntologyRepair forConceptSatisfiability(OWLClassExpression concept) {
         return new OntologyRepairWeakening(o -> o.isSatisfiable(concept));
+    }
+
+    /**
+     * @param refOntology
+     *            The reference ontology.
+     * @param fullOntology
+     *            The full ontology.
+     * @return Weakener using the configuration of this repair.
+     */
+    public AxiomWeakener getWeakener(Ontology refOntology, Ontology fullOntology) {
+        return new AxiomWeakener(refOntology, fullOntology, weakeningFlags);
     }
 
     /**
@@ -188,6 +207,16 @@ public class OntologyRepairWeakening extends OntologyRepair {
         }
     }
 
+    private Stream<OWLAxiom> mostFrequentIn(Stream<Set<OWLAxiom>> sets) {
+        var occurrences = sets
+                .flatMap(set -> set.stream())
+                .collect(Collectors.groupingBy(Function.identity(), Collectors.counting()));
+        var max = occurrences.values().stream().max(Long::compareTo);
+        return occurrences.entrySet().stream()
+                .filter(entry -> entry.getValue() == max.get())
+                .map(entry -> entry.getKey());
+    }
+
     /**
      * @param ontology
      *            The ontology to find bad axioms in.
@@ -197,26 +226,17 @@ public class OntologyRepairWeakening extends OntologyRepair {
     public Stream<OWLAxiom> findBadAxioms(Ontology ontology) {
         switch (badAxiomSource) {
             case IN_LEAST_MCS: {
-                var occurrences = ontology.minimalCorrectionSubsets(isRepaired)
-                        .flatMap(set -> set.stream())
-                        .collect(Collectors.groupingBy(Function.identity(), Collectors.counting()));
-                var max = occurrences.values().stream().max(Long::compareTo);
-                if (max.isEmpty()) {
-                    throw new RuntimeException(
-                            "Did not find a bad subclass or assertion axiom in "
-                                    + Utils.toList(ontology.refutableAxioms()));
-                }
-                return occurrences.entrySet().stream()
-                        .filter(entry -> entry.getValue() == max.get())
-                        .map(entry -> entry.getKey());
+                return mostFrequentIn(ontology.minimalCorrectionSubsets(isRepaired));
             }
             case NOT_IN_LARGEST_MCS: {
-                return ontology.smallestMinimalCorrectionSubsets(isRepaired).flatMap(axioms -> axioms.stream());
+                return mostFrequentIn(ontology.smallestMinimalCorrectionSubsets(isRepaired));
             }
             case NOT_IN_SOME_MCS:
-                return ontology.someMinimalCorrectionSubsets(isRepaired).flatMap(mcs -> mcs.stream());
+                return mostFrequentIn(ontology.someMinimalCorrectionSubsets(isRepaired));
             case IN_SOME_MUS:
-                return ontology.someMinimalUnsatisfiableSubsets(isRepaired).flatMap(mus -> mus.stream());
+                return mostFrequentIn(ontology.someMinimalUnsatisfiableSubsets(isRepaired));
+            case IN_MOST_MUS:
+                return mostFrequentIn(ontology.minimalUnsatisfiableSubsets(isRepaired));
             case IN_ONE_MUS: {
                 var mus = ontology.minimalUnsatisfiableSubset(isRepaired);
                 if (mus == null) {
@@ -245,7 +265,7 @@ public class OntologyRepairWeakening extends OntologyRepair {
         var refAxioms = Utils.randomChoice(getRefAxioms(ontology));
         infoMessage("Selected a reference ontology with " + refAxioms.size() + " axioms.");
         try (var refOntology = ontology.cloneWithRefutable(refAxioms).withSeparateCache()) {
-            var axiomWeakener = new AxiomWeakener(refOntology, ontology);
+            var axiomWeakener = getWeakener(refOntology, ontology);
             while (!isRepaired(ontology)) {
                 var badAxioms = Utils.toList(findBadAxioms(ontology));
                 infoMessage("Found " + badAxioms.size() + " possible bad axioms.");

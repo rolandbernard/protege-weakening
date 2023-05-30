@@ -107,14 +107,17 @@ public class OntologyRepairMctsWeakening extends OntologyRepairBestOfKWeakening 
      *            The strategy for computing the reference ontology.
      * @param badAxiomSource
      *            The strategy for computing bad axioms.
+     * @param weakeningFlags
+     *            The flags to use for weakening.
      * @param quality
      *            Function for evaluating the quality of a repair.
      * @param numberOfRounds
      *            The number of repairs to perform.
      */
     public OntologyRepairMctsWeakening(Predicate<Ontology> isRepaired, RefOntologyStrategy refOntologySource,
-            BadAxiomStrategy badAxiomSource, Function<Ontology, Double> quality, int numberOfRounds) {
-        super(isRepaired, refOntologySource, badAxiomSource, quality, numberOfRounds);
+            BadAxiomStrategy badAxiomSource, int weakeningFlags, Function<Ontology, Double> quality,
+            int numberOfRounds) {
+        super(isRepaired, refOntologySource, badAxiomSource, weakeningFlags, quality, numberOfRounds);
     }
 
     /**
@@ -125,7 +128,7 @@ public class OntologyRepairMctsWeakening extends OntologyRepairBestOfKWeakening 
      */
     public OntologyRepairMctsWeakening(Predicate<Ontology> isRepaired, int numberOfRounds) {
         this(isRepaired, RefOntologyStrategy.INTERSECTION_OF_SOME_MCS, BadAxiomStrategy.IN_ONE_MUS,
-                o -> (double) o.inferredTaxonomyAxioms().count(), numberOfRounds);
+                AxiomWeakener.FLAG_DEFAULT, o -> (double) o.inferredTaxonomyAxioms().count(), numberOfRounds);
     }
 
     /**
@@ -156,7 +159,7 @@ public class OntologyRepairMctsWeakening extends OntologyRepairBestOfKWeakening 
         var bestAxioms = new Set<?>[] { Set.of() };
         var bestQuality = new Double[] { Double.NEGATIVE_INFINITY };
         try (var refOntology = ontology.cloneWithRefutable(refAxioms).withSeparateCache()) {
-            var axiomWeakener = new AxiomWeakener(refOntology, ontology);
+            var axiomWeakener = getWeakener(refOntology, ontology);
             var game = new Game(ontology, axiomWeakener, onto -> {
                 var thisQuality = quality.apply(onto);
                 synchronized (bestQuality) {

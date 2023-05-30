@@ -25,7 +25,7 @@ public class RefinementOperator {
     /**
      * Default, do not apply any strict constraints.
      */
-    public static final int FLAG_NON_STRICT = AxiomRefinement.FLAG_NON_STRICT;
+    public static final int FLAG_DEFAULT = AxiomRefinement.FLAG_DEFAULT;
     /**
      * Accept and produce only axioms with concepts in negation normal form.
      */
@@ -78,7 +78,7 @@ public class RefinementOperator {
         @Override
         public Stream<OWLClassExpression> visit(OWLObjectIntersectionOf concept) {
             var conjuncts = concept.getOperandsAsList();
-            if ((flags & (FLAG_ALC_STRICT | FLAG_SROIQ_STRICT)) != 0 && conjuncts.size() != 2) {
+            if ((flags & FLAG_SROIQ_STRICT) != 0 && conjuncts.size() != 2) {
                 throw new IllegalArgumentException("The concept " + concept + " is not a SROIQ concept.");
             }
             return IntStream.range(0, conjuncts.size()).mapToObj(i -> i)
@@ -101,7 +101,7 @@ public class RefinementOperator {
         @Override
         public Stream<OWLClassExpression> visit(OWLObjectUnionOf concept) {
             var disjuncts = concept.getOperandsAsList();
-            if ((flags & (FLAG_ALC_STRICT | FLAG_SROIQ_STRICT)) != 0 && disjuncts.size() != 2) {
+            if ((flags & FLAG_SROIQ_STRICT) != 0 && disjuncts.size() != 2) {
                 throw new IllegalArgumentException("The concept " + concept + " is not a SROIQ concept.");
             }
             return IntStream.range(0, disjuncts.size()).mapToObj(i -> i)
@@ -127,7 +127,7 @@ public class RefinementOperator {
             var property = concept.getProperty();
             return Stream.concat(
                     refine(filler).map(c -> df.getOWLObjectAllValuesFrom(property, c)),
-                    reverse.refine(property).map(r -> df.getOWLObjectAllValuesFrom(r, filler)));
+                    reverse.refine(property, false).map(r -> df.getOWLObjectAllValuesFrom(r, filler)));
         }
 
         @Override
@@ -136,7 +136,7 @@ public class RefinementOperator {
             var property = concept.getProperty();
             return Stream.concat(
                     refine(filler).map(c -> df.getOWLObjectSomeValuesFrom(property, c)),
-                    refine(property).map(r -> df.getOWLObjectSomeValuesFrom(r, filler)));
+                    refine(property, false).map(r -> df.getOWLObjectSomeValuesFrom(r, filler)));
         }
 
         @Override
@@ -145,7 +145,7 @@ public class RefinementOperator {
                 throw new IllegalArgumentException("The concept " + concept + " is not an ALC concept.");
             }
             var property = concept.getProperty();
-            return refine(property).map(r -> df.getOWLObjectHasSelf(r));
+            return refine(property, true).map(r -> df.getOWLObjectHasSelf(r));
         }
 
         @Override
@@ -159,7 +159,7 @@ public class RefinementOperator {
             return Stream.concat(
                     reverse.refine(filler).map(c -> df.getOWLObjectMaxCardinality(number, property, c)),
                     Stream.concat(
-                            reverse.refine(property).map(r -> df.getOWLObjectMaxCardinality(number, r, filler)),
+                            reverse.refine(property, true).map(r -> df.getOWLObjectMaxCardinality(number, r, filler)),
                             way.apply(number).map(n -> df.getOWLObjectMaxCardinality(n, property, filler))));
         }
 
@@ -174,13 +174,13 @@ public class RefinementOperator {
             return Stream.concat(
                     refine(filler).map(c -> df.getOWLObjectMinCardinality(number, property, c)),
                     Stream.concat(
-                            refine(property).map(r -> df.getOWLObjectMinCardinality(number, r, filler)),
+                            refine(property, true).map(r -> df.getOWLObjectMinCardinality(number, r, filler)),
                             back.apply(number).map(n -> df.getOWLObjectMinCardinality(n, property, filler))));
         }
 
         @Override
         public Stream<OWLClassExpression> visit(OWLObjectExactCardinality concept) {
-            if ((flags & (FLAG_ALC_STRICT | FLAG_SROIQ_STRICT)) != 0) {
+            if ((flags & FLAG_SROIQ_STRICT) != 0) {
                 throw new IllegalArgumentException("The concept " + concept + " is not a SROIQ concept.");
             }
             var number = concept.getCardinality();
@@ -204,7 +204,7 @@ public class RefinementOperator {
         @Override
         public Stream<OWLClassExpression> doDefault(OWLClassExpression obj) {
             var concept = (OWLClassExpression) obj;
-            if ((flags & (FLAG_ALC_STRICT | FLAG_SROIQ_STRICT)) != 0) {
+            if ((flags & FLAG_SROIQ_STRICT) != 0) {
                 throw new IllegalArgumentException("The concept " + concept + " is not a SROIQ concept.");
             } else {
                 return Stream.of();
@@ -217,11 +217,11 @@ public class RefinementOperator {
             return Stream.concat(way.apply(concept), concept.accept(this)).distinct();
         }
 
-        public Stream<OWLObjectPropertyExpression> refine(OWLObjectPropertyExpression role) {
+        public Stream<OWLObjectPropertyExpression> refine(OWLObjectPropertyExpression role, boolean simple) {
             if ((flags & FLAG_ALC_STRICT) != 0) {
                 return Stream.of(role);
             } else {
-                return way.apply(role);
+                return way.apply(role, simple);
             }
         }
     }
@@ -260,7 +260,7 @@ public class RefinementOperator {
      *            upward cover.
      */
     public RefinementOperator(Cover way, Cover back) {
-        this(way, back, FLAG_NON_STRICT);
+        this(way, back, FLAG_DEFAULT);
     }
 
     /**
@@ -282,15 +282,30 @@ public class RefinementOperator {
     }
 
     /**
-     * Apply refinement to a role. This is equivalent to simply applying the way
-     * cover.
+     * Apply refinement to a role. If {@code simple} is false, this is equivalent to
+     * simply applying the way cover.
      *
      * @param role
      *            The role that should be refined.
+     * @param simple
+     *            true to force the returned role to be simple.
      * @return A stream of all refinements of {@code role} using the covers.
      */
+    public Stream<OWLObjectPropertyExpression> refine(OWLObjectPropertyExpression role, boolean simple) {
+        return visitor.refine(role, simple);
+    }
+
+    /**
+     * Apply refinement to a role. This is equivalent of
+     * {@code this.refine(role, true)}.
+     *
+     * @param role
+     *            The role that should be refined.
+     * @return A stream of all refinements of {@code role} using the covers that are
+     *         simple.
+     */
     public Stream<OWLObjectPropertyExpression> refine(OWLObjectPropertyExpression role) {
-        return visitor.refine(role);
+        return this.refine(role, true);
     }
 
     /**
@@ -313,14 +328,28 @@ public class RefinementOperator {
     }
 
     /**
-     * Apply reverse refinement to a role. This is equivalent to simply applying the
-     * way cover.
+     * Apply refinement to a role. If {@code simple} is false, this is equivalent to
+     * simply applying the back cover.
+     *
+     * @param role
+     *            The role that should be refined.
+     * @param simple
+     *            true to force the returned role to be simple.
+     * @return A stream of all refinements of {@code role} using the covers.
+     */
+    public Stream<OWLObjectPropertyExpression> refineReverse(OWLObjectPropertyExpression role, boolean simple) {
+        return visitor.reverse.refine(role, simple);
+    }
+
+    /**
+     * Apply refinement to a role. This is equivalent of
+     * {@code this.refineReverse(role, true)}.
      *
      * @param role
      *            The role that should be refined.
      * @return A stream of all refinements of {@code role} using the covers.
      */
     public Stream<OWLObjectPropertyExpression> refineReverse(OWLObjectPropertyExpression role) {
-        return visitor.reverse.refine(role);
+        return this.refineReverse(role, true);
     }
 }

@@ -203,7 +203,7 @@ public class PreorderCache<T> {
      */
     public synchronized boolean isPossibleSuccessor(T pred, T succ) {
         var set = possibleSuccessors.get(pred);
-        if (set == null) {
+        if (set == null || !possibleSuccessors.containsKey(succ)) {
             return true;
         }
         return set.contains(succ);
@@ -249,6 +249,48 @@ public class PreorderCache<T> {
         } else {
             removePossibleSuccessors(pred, succ);
             return false;
+        }
+    }
+
+    /**
+     * @param pred
+     *            The predecessor of {@code succ}.
+     * @param succ
+     *            The successor of {@code pred}.
+     * @return True iff the new information is consistent with what is already
+     *         known.
+     */
+    public boolean assertSuccessor(T pred, T succ) {
+        assureExistence(pred);
+        assureExistence(succ);
+        if (isKnownSuccessor(pred, succ)) {
+            return true;
+        } else if (!isPossibleSuccessor(pred, succ)) {
+            return false;
+        } else {
+            addKnownSuccessors(pred, succ);
+            return true;
+        }
+    }
+
+    /**
+     * @param pred
+     *            The non-predecessor of {@code succ}.
+     * @param succ
+     *            The non-successor of {@code pred}.
+     * @return True iff the new information is consistent with what is already
+     *         known.
+     */
+    public boolean denySuccessor(T pred, T succ) {
+        assureExistence(pred);
+        assureExistence(succ);
+        if (isKnownSuccessor(pred, succ)) {
+            return false;
+        } else if (!isPossibleSuccessor(pred, succ)) {
+            return true;
+        } else {
+            removePossibleSuccessors(pred, succ);
+            return true;
         }
     }
 

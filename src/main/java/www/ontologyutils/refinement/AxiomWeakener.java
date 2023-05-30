@@ -25,9 +25,9 @@ public class AxiomWeakener extends AxiomRefinement {
          * @param flags
          *            Flags that can be used to make the refinement ore strict.
          */
-        public Visitor(RefinementOperator up, RefinementOperator down,
-                Set<OWLObjectPropertyExpression> simpleRoles, int flags) {
-            super(up, down, simpleRoles, flags);
+        public Visitor(RefinementOperator up, RefinementOperator down, Set<OWLObjectPropertyExpression> simpleRoles,
+                PreorderCache<OWLObjectProperty> regularPreorder, int flags) {
+            super(up, down, simpleRoles, regularPreorder, flags);
         }
 
         @Override
@@ -100,29 +100,24 @@ public class AxiomWeakener extends AxiomRefinement {
         }
     }
 
-    private AxiomWeakener(Cover upCover, Cover downCover, Set<OWLObjectPropertyExpression> simpleRoles, int flags) {
+    private AxiomWeakener(Cover upCover, Cover downCover, Set<OWLObjectPropertyExpression> simpleRoles,
+            PreorderCache<OWLObjectProperty> regularPreorder, int flags) {
         super(new Visitor(new RefinementOperator(upCover, downCover, flags),
-                new RefinementOperator(downCover, upCover, flags), simpleRoles, flags));
+                new RefinementOperator(downCover, upCover, flags), simpleRoles, regularPreorder, flags));
     }
 
-    private AxiomWeakener(Covers covers, Set<OWLObjectPropertyExpression> simpleRoles, int flags, boolean uncached) {
-        this(uncached ? covers.upCover() : covers.upCover().cached(),
-                uncached ? covers.downCover() : covers.downCover().cached(), simpleRoles, flags);
+    private AxiomWeakener(Covers covers, Set<OWLObjectPropertyExpression> simpleRoles,
+            PreorderCache<OWLObjectProperty> regularPreorder, int flags) {
+        this((flags & FLAG_UNCACHED) != 0 ? covers.upCover() : covers.upCover().cached(),
+                (flags & FLAG_UNCACHED) != 0 ? covers.downCover() : covers.downCover().cached(), simpleRoles,
+                regularPreorder, flags);
     }
 
-    /**
-     * @param refOntology
-     *            The reference ontology to use for the up and down covers.
-     * @param subConcepts
-     *            Return only concepts that are in this set.
-     * @param simpleRoles
-     *            The roles that are guaranteed to be simple.
-     * @param uncached
-     *            Do not use any caching, always call the reasoner.
-     */
-    public AxiomWeakener(Ontology refOntology, Set<OWLClassExpression> subConcepts,
-            Set<OWLObjectPropertyExpression> simpleRoles, boolean uncached) {
-        this(new Covers(refOntology, subConcepts, simpleRoles, uncached), simpleRoles, FLAG_NON_STRICT, uncached);
+    private AxiomWeakener(Ontology refOntology, Set<OWLClassExpression> subConcepts,
+            Set<OWLObjectPropertyExpression> subRoles, Set<OWLObjectPropertyExpression> simpleRoles,
+            PreorderCache<OWLObjectProperty> regularPreorder, int flags) {
+        this(new Covers(refOntology, subConcepts, (flags & FLAG_SIMPLE_ROLES_STRICT) != 0 ? simpleRoles : subRoles,
+                simpleRoles, (flags & FLAG_UNCACHED) != 0), simpleRoles, regularPreorder, flags);
     }
 
     /**
@@ -131,25 +126,13 @@ public class AxiomWeakener extends AxiomRefinement {
      * @param fullOntology
      *            The maximal ontology in which the weaker axioms will be
      *            used in.
-     * @param uncached
-     *            Do not use any caching, always call the reasoner.
+     * @param flags
+     *            The flags to use.
      */
-    public AxiomWeakener(Ontology refOntology, Ontology fullOntology, boolean uncached) {
-        this(refOntology, Utils.toSet(fullOntology.subConcepts()), Utils.toSet(fullOntology.simpleRoles()), uncached);
-    }
-
-    /**
-     * Create a new axiom weakener with the given reference ontology. To maintain
-     * global restrictions on roles, all roles in {@code simpleRoles} must be simple
-     * in all ontologies the weakened axioms are used in.
-     *
-     * @param refOntology
-     *            The reference ontology to use for the up and down covers.
-     * @param simpleRoles
-     *            The roles that are guaranteed to be simple.
-     */
-    public AxiomWeakener(Ontology refOntology, Set<OWLObjectPropertyExpression> simpleRoles) {
-        this(refOntology, Utils.toSet(refOntology.subConcepts()), simpleRoles, false);
+    public AxiomWeakener(Ontology refOntology, Ontology fullOntology, int flags) {
+        this(refOntology, Utils.toSet(fullOntology.subConcepts()),
+                Utils.toSet(fullOntology.subRoles()), Utils.toSet(fullOntology.simpleRoles()),
+                (flags & FLAG_RIA_ONLY_SIMPLE) != 0 ? null : fullOntology.regularPreorder(), flags);
     }
 
     /**
@@ -162,7 +145,17 @@ public class AxiomWeakener extends AxiomRefinement {
      *            used in.
      */
     public AxiomWeakener(Ontology refOntology, Ontology fullOntology) {
-        this(refOntology, fullOntology, false);
+        this(refOntology, fullOntology, FLAG_DEFAULT);
+    }
+
+    /**
+     * @param refOntology
+     *            The reference ontology to use for the up and down covers.
+     * @param flags
+     *            The flags to use.
+     */
+    public AxiomWeakener(Ontology refOntology, int flags) {
+        this(refOntology, refOntology, flags);
     }
 
     /**

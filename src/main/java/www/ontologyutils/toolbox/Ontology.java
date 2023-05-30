@@ -541,7 +541,7 @@ public class Ontology implements AutoCloseable {
      * of {@code axiom} is {@code origin}.
      *
      * @param axiom
-     *            iom to annotate.
+     *            Axiom to annotate.
      * @param origin
      *            The origin axiom.
      * @return A new annotated axiom equivalent to {@code axiom}.
@@ -559,7 +559,7 @@ public class Ontology implements AutoCloseable {
      * annotated with the original axioms as the origin.
      *
      * @param remove
-     *            ove.
+     *            Axiom to remove.
      * @param replacement
      *            The axioms to add.
      */
@@ -591,7 +591,7 @@ public class Ontology implements AutoCloseable {
      * annotated with the original axioms as the origin.
      *
      * @param remove
-     *            ove.
+     *            Axiom to remove.
      * @param replacement
      *            The axioms to add.
      */
@@ -604,7 +604,7 @@ public class Ontology implements AutoCloseable {
      * annotated with the original axioms as the origin.
      *
      * @param remove
-     *            ove.
+     *            Axiom to remove.
      * @param replacement
      *            The axioms to add.
      */
@@ -723,7 +723,7 @@ public class Ontology implements AutoCloseable {
 
     /**
      * @param subClass
-     *            ub concept.
+     *            The possible sub concept.
      * @param superClass
      *            The possible super concept.
      * @return true if the extension of {@code subClass} is a subset of the
@@ -890,6 +890,43 @@ public class Ontology implements AutoCloseable {
     }
 
     /**
+     * @param isRepaired
+     *            The monotone predicate testing that the ontology is repaired.
+     * @return The set containing all maximal subsets (including static axioms)
+     *         of the ontologies axioms that satisfy {@code isRepaired}.
+     */
+    public Set<Set<OWLAxiom>> getMaximalConsistentSubsets(Predicate<Ontology> isRepaired) {
+        return Utils.toSet(getMinimalCorrectionSubsets(isRepaired).stream().map(this::complement));
+    }
+
+    /**
+     * @param isRepaired
+     *            The monotone predicate testing that the ontology is repaired.
+     * @return A set of all minimal subsets that when removed from the ontology
+     *         yield an optimal classical repair for consistency of the ontology.
+     */
+    public Set<Set<OWLAxiom>> getMinimalCorrectionSubsets(Predicate<Ontology> isRepaired) {
+        return MinimalSubsets.getAllMinimalSubsets(refutableAxioms, axioms -> {
+            try (var ontology = new Ontology(staticAxioms, complement(axioms), reasonerCache)) {
+                return isRepaired.test(ontology);
+            }
+        });
+    }
+
+    /**
+     * @param isRepaired
+     *            The monotone predicate testing that the ontology is repaired.
+     * @return A set of all minimal subsets that are not repaired.
+     */
+    public Set<Set<OWLAxiom>> getMinimalUnsatisfiableSubsets(Predicate<Ontology> isRepaired) {
+        return MinimalSubsets.getAllMinimalSubsets(refutableAxioms, axioms -> {
+            try (var ontology = new Ontology(staticAxioms, axioms, reasonerCache)) {
+                return !isRepaired.test(ontology);
+            }
+        });
+    }
+
+    /**
      * @return A stream providing all subconcepts used in the ontology.
      */
     public Stream<OWLClassExpression> subConcepts() {
@@ -902,8 +939,23 @@ public class Ontology implements AutoCloseable {
      * @return A stream containing all non-simple roles.
      */
     public Stream<OWLObjectPropertyExpression> nonSimpleRoles() {
-        return withOwlOntologyDo(ontology -> (new OWLObjectPropertyManager(ontology.getOWLOntologyManager(), ontology))
-                .getNonSimpleProperties()).stream();
+        var df = getDefaultDataFactory();
+        return Stream
+                .concat(withOwlOntologyDo(
+                        ontology -> (new OWLObjectPropertyManager(ontology.getOWLOntologyManager(), ontology))
+                                .getNonSimpleProperties())
+                        .stream(),
+                        Stream.of(df.getOWLBottomObjectProperty(), df.getOWLTopObjectProperty()))
+                .distinct();
+    }
+
+    /**
+     * @return A stream containing all roles in the signature and there inverse.
+     */
+    public Stream<OWLObjectPropertyExpression> subRoles() {
+        var df = getDefaultDataFactory();
+        return Stream.concat(rolesInSignature().flatMap(r -> Stream.of(r, r.getInverseProperty())),
+                Stream.of(df.getOWLBottomObjectProperty(), df.getOWLTopObjectProperty())).distinct();
     }
 
     /**
@@ -911,8 +963,51 @@ public class Ontology implements AutoCloseable {
      */
     public Stream<OWLObjectPropertyExpression> simpleRoles() {
         var nonSimple = Utils.toSet(nonSimpleRoles());
-        return rolesInSignature().flatMap(r -> Stream.of(r, r.getInverseProperty()))
-                .filter(role -> !nonSimple.contains(role));
+        return subRoles().filter(role -> !nonSimple.contains(role));
+    }
+
+    /**
+     * @return A pre-order for this ontology's role hierarchy or null if one does
+     *         not exist. Note that the generated preorder is maximal with respect
+     *         to the constraints.
+     */
+    public PreorderCache<OWLObjectProperty> regularPreorder() {
+        var preorder = new PreorderCache<OWLObjectProperty>();
+        preorder.setupDomain(Utils.toList(rolesInSignature()));
+        for (var axiom : (Iterable<OWLAxiom>) axioms()::iterator) {
+            if (axiom instanceof OWLSubObjectPropertyOfAxiom) {
+                var ax = (OWLSubObjectPropertyOfAxiom) axiom;
+                var sub = ax.getSubProperty().getNamedProperty();
+                var sup = ax.getSuperProperty().getNamedProperty();
+                if (!preorder.assertSuccessor(sub, sup)) {
+                    return null;
+                }
+            } else if (axiom instanceof OWLSubPropertyChainOfAxiom) {
+                var ax = (OWLSubPropertyChainOfAxiom) axiom;
+                var subs = ax.getPropertyChain();
+                var sup = ax.getSuperProperty();
+                List<OWLObjectPropertyExpression> preds;
+                if (subs.size() == 2 && subs.get(0).equals(sup) && subs.get(1).equals(sup)) {
+                    preds = List.of();
+                } else if (subs.get(0).equals(sup)) {
+                    preds = subs.subList(1, subs.size());
+                } else if (subs.get(subs.size() - 1).equals(sup)) {
+                    preds = subs.subList(0, subs.size() - 1);
+                } else {
+                    preds = subs;
+                }
+                for (var pred : preds) {
+                    var subName = pred.getNamedProperty();
+                    var supName = sup.getNamedProperty();
+                    if (!preorder.assertSuccessor(subName, supName)) {
+                        return null;
+                    } else if (!preorder.denySuccessor(supName, subName)) {
+                        return null;
+                    }
+                }
+            }
+        }
+        return preorder;
     }
 
     /**
@@ -984,9 +1079,11 @@ public class Ontology implements AutoCloseable {
         changed = true;
         var df = getDefaultDataFactory();
         for (var entity : Utils.toList(signature())) {
-            var newAxiom = df.getOWLDeclarationAxiom(entity);
-            if (!staticAxioms.contains(newAxiom) && !refutableAxioms.contains(newAxiom)) {
-                staticAxioms.add(newAxiom);
+            if (entity.isOWLClass() || entity.isOWLObjectProperty() || entity.isOWLNamedIndividual()) {
+                var newAxiom = df.getOWLDeclarationAxiom(entity);
+                if (!staticAxioms.contains(newAxiom) && !refutableAxioms.contains(newAxiom)) {
+                    staticAxioms.add(newAxiom);
+                }
             }
         }
     }

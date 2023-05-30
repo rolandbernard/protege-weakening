@@ -31,14 +31,17 @@ public class OntologyRepairBestOfKWeakening extends OntologyRepairWeakening {
      *            The strategy for computing the reference ontology.
      * @param badAxiomSource
      *            The strategy for computing bad axioms.
+     * @param weakeningFlags
+     *            The flags to use for weakening.
      * @param quality
      *            Function for evaluating the quality of a repair.
      * @param numberOfRounds
      *            The number of repairs to perform.
      */
     public OntologyRepairBestOfKWeakening(Predicate<Ontology> isRepaired, RefOntologyStrategy refOntologySource,
-            BadAxiomStrategy badAxiomSource, Function<Ontology, Double> quality, int numberOfRounds) {
-        super(isRepaired, refOntologySource, badAxiomSource);
+            BadAxiomStrategy badAxiomSource, int weakeningFlags, Function<Ontology, Double> quality,
+            int numberOfRounds) {
+        super(isRepaired, refOntologySource, badAxiomSource, weakeningFlags);
         this.quality = quality;
         this.numberOfRounds = numberOfRounds;
     }
@@ -51,7 +54,7 @@ public class OntologyRepairBestOfKWeakening extends OntologyRepairWeakening {
      */
     public OntologyRepairBestOfKWeakening(Predicate<Ontology> isRepaired, int numberOfRounds) {
         this(isRepaired, RefOntologyStrategy.INTERSECTION_OF_SOME_MCS, BadAxiomStrategy.IN_ONE_MUS,
-                o -> (double) o.inferredTaxonomyAxioms().count(), numberOfRounds);
+                AxiomWeakener.FLAG_DEFAULT, o -> (double) o.inferredTaxonomyAxioms().count(), numberOfRounds);
     }
 
     /**
@@ -80,7 +83,7 @@ public class OntologyRepairBestOfKWeakening extends OntologyRepairWeakening {
         infoMessage("Selected a reference ontology with " + refAxioms.size() + " axioms.");
         var repairs = new ArrayList<Map.Entry<Set<OWLAxiom>, Double>>();
         try (var refOntology = ontology.cloneWithRefutable(refAxioms).withSeparateCache()) {
-            var axiomWeakener = new AxiomWeakener(refOntology, ontology);
+            var axiomWeakener = getWeakener(refOntology, ontology);
             var parallelism = Runtime.getRuntime().availableProcessors();
             var executor = Executors.newFixedThreadPool(parallelism);
             for (int i = 0; i < numberOfRounds; i++) {
