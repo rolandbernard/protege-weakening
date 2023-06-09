@@ -6,7 +6,6 @@ import java.util.function.*;
 import java.util.stream.*;
 
 import org.semanticweb.owlapi.apibinding.OWLManager;
-import org.semanticweb.owlapi.formats.FunctionalSyntaxDocumentFormat;
 import org.semanticweb.owlapi.model.*;
 import org.semanticweb.owlapi.profiles.*;
 import org.semanticweb.owlapi.reasoner.*;
@@ -28,6 +27,11 @@ public class Ontology implements AutoCloseable {
      * This is only here for statistics
      */
     public static int reasonerCalls;
+    /**
+     * Set this to true if you want to add axioms reflecting the original axioms,
+     * before replacement.
+     */
+    public static boolean originAnnotation = false;
 
     private static class ReasonerCache {
         private OWLReasonerFactory reasonerFactory;
@@ -47,6 +51,13 @@ public class Ontology implements AutoCloseable {
             this.references = new HashSet<>();
             this.unusedReasoners = new ArrayDeque<>();
             this.lastOntologies = new IdentityHashMap<>();
+        }
+
+        /**
+         * @returns The set of ontologies referencing this cache.
+         */
+        public synchronized Set<Ontology> getReferences() {
+            return Set.copyOf(references);
         }
 
         /**
@@ -155,8 +166,21 @@ public class Ontology implements AutoCloseable {
             var reasoner = getOwlReasoner(ontology);
             try {
                 return action.apply(reasoner);
+            } catch (ReasonerInternalException ex) {
+                // Nothing we can really do here, try again with a new reasoner.
+                ex.printStackTrace();
+                reasoner.dispose();
+                reasoner = null;
+                return withReasonerDo(ontology, action);
+            } catch (Exception | OutOfMemoryError ex) {
+                // Reusing the reasoner after an exception is not a good idea.
+                reasoner.dispose();
+                reasoner = null;
+                throw ex;
             } finally {
-                disposeOwlReasoner(reasoner);
+                if (reasoner != null) {
+                    disposeOwlReasoner(reasoner);
+                }
             }
         }
     }
@@ -270,7 +294,7 @@ public class Ontology implements AutoCloseable {
         this.<Void>withOwlOntologyDo(ontology -> {
             var ontologyFile = new File(filePath);
             try {
-                ontology.saveOntology(new FunctionalSyntaxDocumentFormat(), IRI.create(ontologyFile));
+                ontology.saveOntology(IRI.create(ontologyFile));
             } catch (OWLOntologyStorageException e) {
                 Utils.panic(e);
             }
@@ -547,7 +571,7 @@ public class Ontology implements AutoCloseable {
      * @return A new annotated axiom equivalent to {@code axiom}.
      */
     public static OWLAxiom getOriginAnnotatedAxiom(OWLAxiom axiom, OWLAxiom origin) {
-        if (axiom.equals(origin)) {
+        if (!originAnnotation || axiom.equals(origin)) {
             return axiom;
         } else {
             return axiom.getAnnotatedAxiom(Utils.toSet(axiomOriginAnnotations(origin)));
@@ -868,11 +892,12 @@ public class Ontology implements AutoCloseable {
      * @return A stream of some minimal correction subset.
      */
     public Stream<Set<OWLAxiom>> someMinimalCorrectionSubsets(Predicate<Ontology> isRepaired) {
-        return MinimalSubsets.randomizedMinimalSubsets(refutableAxioms, 1, axioms -> {
-            try (var ontology = new Ontology(staticAxioms, complement(axioms), reasonerCache)) {
-                return isRepaired.test(ontology);
-            }
-        });
+        return IntStream.range(0, 16)
+                .mapToObj(i -> MinimalSubsets.getRandomizedMinimalSubset(refutableAxioms, axioms -> {
+                    try (var ontology = new Ontology(staticAxioms, complement(axioms), reasonerCache)) {
+                        return isRepaired.test(ontology);
+                    }
+                })).distinct();
     }
 
     /**
@@ -882,11 +907,12 @@ public class Ontology implements AutoCloseable {
      *         unsatisfiable subset.
      */
     public Stream<Set<OWLAxiom>> someMinimalUnsatisfiableSubsets(Predicate<Ontology> isRepaired) {
-        return MinimalSubsets.randomizedMinimalSubsets(refutableAxioms, 1, axioms -> {
-            try (var ontology = new Ontology(staticAxioms, axioms, reasonerCache)) {
-                return !isRepaired.test(ontology);
-            }
-        });
+        return IntStream.range(0, 16)
+                .mapToObj(i -> MinimalSubsets.getRandomizedMinimalSubset(refutableAxioms, axioms -> {
+                    try (var ontology = new Ontology(staticAxioms, axioms, reasonerCache)) {
+                        return !isRepaired.test(ontology);
+                    }
+                })).distinct();
     }
 
     /**
@@ -1042,15 +1068,45 @@ public class Ontology implements AutoCloseable {
     }
 
     /**
-     * @return The stream of C1 subclass C2 axioms, C1 and C2 classes in the
-     *         signature of {@code ontology}, entailed by {@code ontology}.
+     * @param concepts
+     *            The concepts over which to build the
+     * @return The stream of C1 subclass C2 axioms, C1 and C2 subconcepts in of this
+     *         ontology, entailed by this ontology.
      */
-    public Stream<OWLSubClassOfAxiom> inferredTaxonomyAxioms() {
+    public Stream<OWLSubClassOfAxiom> inferredSubsumptionsOver(Set<OWLClassExpression> concepts) {
         var df = getDefaultDataFactory();
         var cache = new SubClassCache();
-        return conceptsInSignature().flatMap(subClass -> conceptsInSignature()
+        return concepts.stream().flatMap(subClass -> concepts.stream()
                 .filter(superClass -> cache.computeIfAbsent(subClass, superClass, this::isSubClass))
                 .map(superClass -> df.getOWLSubClassOfAxiom(subClass, superClass)));
+    }
+
+    /**
+     * @return The stream of C1 subclass C2 axioms, C1 and C2 classes in the
+     *         signature of this ontology, entailed by this ontology.
+     */
+    public Stream<OWLSubClassOfAxiom> inferredTaxonomyAxioms() {
+        return inferredSubsumptionsOver(Utils.toSet(conceptsInSignature()));
+    }
+
+    /**
+     * @param <T>
+     *            The set element type.
+     * @param a
+     *            The first set.
+     * @param b
+     *            The second set.
+     * @return double between 0 and 1. > 0.5 if {@code a} contains more information.
+     *         < 0.5 if {@code b} contains more information.
+     */
+    public static <T> double relativeInformationContent(Set<T> a, Set<T> b) {
+        var onlyA = a.stream().filter(ax -> !b.contains(ax)).count();
+        var onlyB = b.stream().filter(ax -> !a.contains(ax)).count();
+        if (onlyB == 0 && onlyA == 0) {
+            return 0.5;
+        } else {
+            return ((double) onlyA) / ((double) onlyA + (double) onlyB);
+        }
     }
 
     /**
@@ -1060,15 +1116,8 @@ public class Ontology implements AutoCloseable {
      *         the other ontology.
      */
     public double iicWithRespectTo(Ontology other) {
-        var inferredThis = Utils.toSet(inferredTaxonomyAxioms());
-        var inferredOther = Utils.toSet(other.inferredTaxonomyAxioms());
-        var onlyThis = inferredThis.stream().filter(ax -> !inferredOther.contains(ax)).count();
-        var onlyOther = inferredOther.stream().filter(ax -> !inferredThis.contains(ax)).count();
-        if (onlyOther == 0 && onlyThis == 0) {
-            return 0.5;
-        } else {
-            return ((double) onlyThis) / ((double) onlyThis + (double) onlyOther);
-        }
+        return relativeInformationContent(Utils.toSet(inferredTaxonomyAxioms()),
+                Utils.toSet(other.inferredTaxonomyAxioms()));
     }
 
     /**
@@ -1083,6 +1132,21 @@ public class Ontology implements AutoCloseable {
                 var newAxiom = df.getOWLDeclarationAxiom(entity);
                 if (!staticAxioms.contains(newAxiom) && !refutableAxioms.contains(newAxiom)) {
                     staticAxioms.add(newAxiom);
+                }
+            }
+        }
+    }
+
+    /**
+     * Remove all declaration axioms that are otherwise not in the signature.
+     */
+    public void cleanUnnecessaryDeclarationAxioms() {
+        var needed = Utils.toSet(logicalAxioms().flatMap(ax -> ax.getSignature().stream()));
+        for (var ax : Utils.toList(axioms(AxiomType.DECLARATION))) {
+            if (ax instanceof OWLDeclarationAxiom) {
+                var axiom = (OWLDeclarationAxiom)ax;
+                if (!needed.contains(axiom.getEntity())) {
+                    removeAxioms(ax);
                 }
             }
         }
@@ -1151,6 +1215,21 @@ public class Ontology implements AutoCloseable {
     public void close() {
         if (reasonerCache != null) {
             reasonerCache.removeReference(this);
+            reasonerCache = null;
+        }
+    }
+
+    /**
+     * Close this ontology, and all ontologies that share a cache with this
+     * ontology.
+     */
+    public void closeAll() {
+        if (reasonerCache != null) {
+            synchronized (reasonerCache) {
+                for (var onto : reasonerCache.getReferences()) {
+                    onto.close();
+                }
+            }
             reasonerCache = null;
         }
     }

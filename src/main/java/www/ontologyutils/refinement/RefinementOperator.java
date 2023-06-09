@@ -37,7 +37,7 @@ public class RefinementOperator {
     /**
      * Accept only axioms that have direct equivalents in SROIQ.
      */
-    public static final int FLAG_SROIQ_STRICT = AxiomRefinement.FLAG_SROIQ_STRICT;
+    public static final int FLAG_SROIQ_STRICT = AxiomRefinement.FLAG_ALC_STRICT;
     /**
      * Treat intersection and union operands as lists and allow singleton sets.
      */
@@ -78,7 +78,7 @@ public class RefinementOperator {
         @Override
         public Stream<OWLClassExpression> visit(OWLObjectIntersectionOf concept) {
             var conjuncts = concept.getOperandsAsList();
-            if ((flags & FLAG_SROIQ_STRICT) != 0 && conjuncts.size() != 2) {
+            if ((flags & (FLAG_ALC_STRICT | FLAG_SROIQ_STRICT)) != 0 && conjuncts.size() != 2) {
                 throw new IllegalArgumentException("The concept " + concept + " is not a SROIQ concept.");
             }
             return IntStream.range(0, conjuncts.size()).mapToObj(i -> i)
@@ -101,7 +101,7 @@ public class RefinementOperator {
         @Override
         public Stream<OWLClassExpression> visit(OWLObjectUnionOf concept) {
             var disjuncts = concept.getOperandsAsList();
-            if ((flags & FLAG_SROIQ_STRICT) != 0 && disjuncts.size() != 2) {
+            if ((flags & (FLAG_ALC_STRICT | FLAG_SROIQ_STRICT)) != 0 && disjuncts.size() != 2) {
                 throw new IllegalArgumentException("The concept " + concept + " is not a SROIQ concept.");
             }
             return IntStream.range(0, disjuncts.size()).mapToObj(i -> i)
@@ -180,7 +180,7 @@ public class RefinementOperator {
 
         @Override
         public Stream<OWLClassExpression> visit(OWLObjectExactCardinality concept) {
-            if ((flags & FLAG_SROIQ_STRICT) != 0) {
+            if ((flags & (FLAG_ALC_STRICT | FLAG_SROIQ_STRICT)) != 0) {
                 throw new IllegalArgumentException("The concept " + concept + " is not a SROIQ concept.");
             }
             var number = concept.getCardinality();
@@ -204,7 +204,7 @@ public class RefinementOperator {
         @Override
         public Stream<OWLClassExpression> doDefault(OWLClassExpression obj) {
             var concept = (OWLClassExpression) obj;
-            if ((flags & FLAG_SROIQ_STRICT) != 0) {
+            if ((flags & (FLAG_ALC_STRICT | FLAG_SROIQ_STRICT)) != 0) {
                 throw new IllegalArgumentException("The concept " + concept + " is not a SROIQ concept.");
             } else {
                 return Stream.of();
@@ -323,7 +323,7 @@ public class RefinementOperator {
      *             If the axioms in this ontology are not
      *             supported by the current flags.
      */
-    public Stream<OWLClassExpression> refineReverse(OWLClassExpression concept) throws IllegalArgumentException {
+    public Stream<OWLClassExpression> corefine(OWLClassExpression concept) throws IllegalArgumentException {
         return visitor.reverse.refine(concept);
     }
 
@@ -337,19 +337,19 @@ public class RefinementOperator {
      *            true to force the returned role to be simple.
      * @return A stream of all refinements of {@code role} using the covers.
      */
-    public Stream<OWLObjectPropertyExpression> refineReverse(OWLObjectPropertyExpression role, boolean simple) {
+    public Stream<OWLObjectPropertyExpression> corefine(OWLObjectPropertyExpression role, boolean simple) {
         return visitor.reverse.refine(role, simple);
     }
 
     /**
      * Apply refinement to a role. This is equivalent of
-     * {@code this.refineReverse(role, true)}.
+     * {@code this.corefine(role, true)}.
      *
      * @param role
      *            The role that should be refined.
      * @return A stream of all refinements of {@code role} using the covers.
      */
-    public Stream<OWLObjectPropertyExpression> refineReverse(OWLObjectPropertyExpression role) {
-        return this.refineReverse(role, true);
+    public Stream<OWLObjectPropertyExpression> corefine(OWLObjectPropertyExpression role) {
+        return this.corefine(role, true);
     }
 }

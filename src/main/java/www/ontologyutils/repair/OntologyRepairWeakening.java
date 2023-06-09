@@ -279,4 +279,43 @@ public class OntologyRepairWeakening extends OntologyRepair {
             }
         }
     }
+
+    @Override
+    public Stream<Ontology> multiple(Ontology ontology) {
+        // Optimized version that reuses the cached reasoners and axiom weakeners.
+        var weakeners = new HashMap<Set<OWLAxiom>, AxiomWeakener>();
+        var refOntologyBase = ontology.cloneWithSeparateCache();
+        return Stream.generate(() -> {
+            try {
+                var refAxioms = Utils.randomChoice(getRefAxioms(ontology));
+                AxiomWeakener axiomWeakener;
+                synchronized (weakeners) {
+                    axiomWeakener = weakeners.computeIfAbsent(refAxioms,
+                            ax -> getWeakener(refOntologyBase.cloneWithRefutable(ax), ontology));
+                }
+                var copy = ontology.clone();
+                while (!isRepaired(copy)) {
+                    var badAxioms = Utils.toList(findBadAxioms(copy));
+                    infoMessage("Found " + badAxioms.size() + " possible bad axioms.");
+                    var badAxiom = Utils.randomChoice(badAxioms);
+                    infoMessage("Selected the bad axiom " + Utils.prettyPrintAxiom(badAxiom) + ".");
+                    var weakerAxioms = Utils.toList(axiomWeakener.weakerAxioms(badAxiom));
+                    infoMessage("Found " + weakerAxioms.size() + " weaker axioms.");
+                    var weakerAxiom = Utils.randomChoice(weakerAxioms);
+                    infoMessage("Selected the weaker axiom " + Utils.prettyPrintAxiom(weakerAxiom) + ".");
+                    copy.replaceAxiom(badAxiom, weakerAxiom);
+                }
+                infoMessage("Found repair.");
+                return copy;
+            } catch (OutOfMemoryError e) {
+                weakeners.clear();
+                return null;
+            } catch (Exception e) {
+                e.printStackTrace();
+                return null;
+            }
+        }).filter(onto -> onto != null).onClose(() -> {
+            refOntologyBase.closeAll();
+        });
+    }
 }

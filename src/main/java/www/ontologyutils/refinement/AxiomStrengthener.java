@@ -52,7 +52,9 @@ public class AxiomStrengthener extends AxiomRefinement {
     private AxiomStrengthener(Ontology refOntology, Set<OWLClassExpression> subConcepts,
             Set<OWLObjectPropertyExpression> subRoles, Set<OWLObjectPropertyExpression> simpleRoles,
             PreorderCache<OWLObjectProperty> regularPreorder, int flags) {
-        this(new Covers(refOntology, subConcepts, (flags & FLAG_SIMPLE_ROLES_STRICT) != 0 ? simpleRoles : subRoles,
+        this(new Covers(refOntology, subConcepts,
+                (flags & FLAG_NO_ROLE_REFINEMENT) != 0 ? Set.of()
+                        : (flags & FLAG_SIMPLE_ROLES_STRICT) != 0 ? simpleRoles : subRoles,
                 simpleRoles, (flags & FLAG_UNCACHED) != 0), simpleRoles, regularPreorder, flags);
     }
 
@@ -68,7 +70,9 @@ public class AxiomStrengthener extends AxiomRefinement {
     public AxiomStrengthener(Ontology refOntology, Ontology fullOntology, int flags) {
         this(refOntology, Utils.toSet(fullOntology.subConcepts()),
                 Utils.toSet(fullOntology.subRoles()), Utils.toSet(fullOntology.simpleRoles()),
-                (flags & FLAG_RIA_ONLY_SIMPLE) != 0 ? null : fullOntology.regularPreorder(), flags);
+                (flags & (FLAG_RIA_ONLY_SIMPLE | FLAG_SIMPLE_ROLES_STRICT)) != 0 ? null
+                        : fullOntology.regularPreorder(),
+                flags);
     }
 
     /**

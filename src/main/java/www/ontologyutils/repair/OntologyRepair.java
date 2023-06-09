@@ -100,4 +100,19 @@ public abstract class OntologyRepair implements OntologyModification {
         repair(ontology);
         infoMessage("Finished repairing the ontology.");
     }
+
+    /**
+     * Generate multiple repairs for the same ontology. Note that the repairs must
+     * not necessarily be unique and the stream may be infinite. The original
+     * ontology is left unchanged. The default implementation may be overwritten for
+     * better efficiency.
+     *
+     * @param ontology
+     *            The ontology to repair.
+     * @return A stream of the repairs.
+     * @throws IllegalArgumentException
+     */
+    public Stream<Ontology> multiple(Ontology ontology) throws IllegalArgumentException {
+        return Stream.generate(() -> modified(ontology));
+    }
 }

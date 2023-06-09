@@ -347,21 +347,33 @@ public final class MinimalSubsets {
     }
 
     private static <T extends Comparable<? super T>> Set<T> allMinimalSubsetsHelper(Collection<T> contained,
-            Collection<T> set, Predicate<Set<T>> isValid, ArrayDeque<Set<T>> queue, SetOfSets<T> minimalSets,
-            SetOfSets<T> hittingSets, Map<T, Integer> frequency) {
+            Collection<T> set, Predicate<Set<T>> isValid, Set<T> path, ArrayDeque<Map.Entry<T, Boolean>> queue,
+            SetOfSets<T> minimalSets,
+            SetOfSets<T> prefixPaths, Map<T, Integer> frequency) {
         Set<T> result = null;
         while (result == null && !queue.isEmpty()) {
-            var path = queue.pop();
-            if (hittingSets.containsSubset(path)) {
+            var frame = queue.removeLast();
+            if (frame.getValue() != null) {
+                if (frame.getValue()) {
+                    addToSetOfSets(prefixPaths, path);
+                    set.add(frame.getKey());
+                    path.remove(frame.getKey());
+                    continue;
+                } else {
+                    set.remove(frame.getKey());
+                    path.add(frame.getKey());
+                }
+            }
+            if (prefixPaths.containsSubset(path)) {
                 continue;
             }
             Set<T> minimalSet = minimalSets.getDisjoint(path);
             if (minimalSet == null) {
-                minimalSet = getMinimalSubset(contained, getDifference(set, path), isValid);
+                minimalSet = getMinimalSubset(contained, set, isValid);
                 if (minimalSet == null) {
                     var minimalHitting = getMinimalSubset(Set.of(), path,
-                            s -> !isValid.test(getUnion(contained, getDifference(set, s))));
-                    hittingSets.add(minimalHitting);
+                            s -> !isValid.test(getUnion(contained, set, getDifference(path, s))));
+                    addToSetOfSets(prefixPaths, minimalHitting);
                     continue;
                 }
                 minimalSets.add(minimalSet);
@@ -373,7 +385,8 @@ public final class MinimalSubsets {
             var sorted = minimalSet.stream()
                     .sorted((a, b) -> frequency.get(b).compareTo(frequency.get(a)));
             for (var elem : (Iterable<T>) sorted::iterator) {
-                queue.push(getUnion(path, Set.of(elem)));
+                queue.addLast(new AbstractMap.SimpleEntry<>(elem, true));
+                queue.addLast(new AbstractMap.SimpleEntry<>(elem, false));
             }
         }
         return result;
@@ -397,17 +410,17 @@ public final class MinimalSubsets {
             return Stream.of(Set.of());
         } else {
             var minimalSets = new SetOfSets<T>();
-            var hittingSets = new SetOfSets<T>();
+            var prefixPaths = new SetOfSets<T>();
             var frequency = new HashMap<T, Integer>();
-            var queue = new ArrayDeque<Set<T>>();
-            queue.add(Set.of());
+            var queue = new ArrayDeque<Map.Entry<T, Boolean>>();
+            queue.add(new AbstractMap.SimpleEntry<>(null, null));
             return StreamSupport.stream(Spliterators.spliteratorUnknownSize(new Iterator<Set<T>>() {
                 private Set<T> result;
 
                 public boolean hasNext() {
                     if (result == null) {
-                        result = allMinimalSubsetsHelper(contained, set, isValid, queue, minimalSets, hittingSets,
-                                frequency);
+                        result = allMinimalSubsetsHelper(Set.copyOf(contained), new HashSet<>(set), isValid,
+                                new HashSet<>(), queue, minimalSets, prefixPaths, frequency);
                     }
                     return result != null;
                 }
