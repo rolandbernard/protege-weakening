@@ -1075,7 +1075,7 @@ public class Ontology implements AutoCloseable {
      */
     public Stream<OWLSubClassOfAxiom> inferredSubsumptionsOver(Set<OWLClassExpression> concepts) {
         var df = getDefaultDataFactory();
-        var cache = new SubClassCache();
+        var cache = new SubClassCache(concepts);
         return concepts.stream().flatMap(subClass -> concepts.stream()
                 .filter(superClass -> cache.computeIfAbsent(subClass, superClass, this::isSubClass))
                 .map(superClass -> df.getOWLSubClassOfAxiom(subClass, superClass)));
@@ -1096,8 +1096,8 @@ public class Ontology implements AutoCloseable {
      *            The first set.
      * @param b
      *            The second set.
-     * @return double between 0 and 1. > 0.5 if {@code a} contains more information.
-     *         < 0.5 if {@code b} contains more information.
+     * @return double between 0 and 1. &gt; 0.5 if {@code a} contains more information.
+     *         &lt; 0.5 if {@code b} contains more information.
      */
     public static <T> double relativeInformationContent(Set<T> a, Set<T> b) {
         var onlyA = a.stream().filter(ax -> !b.contains(ax)).count();

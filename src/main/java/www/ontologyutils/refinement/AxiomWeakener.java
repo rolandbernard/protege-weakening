@@ -119,7 +119,7 @@ public class AxiomWeakener extends AxiomRefinement {
         this(new Covers(refOntology, subConcepts,
                 (flags & FLAG_NO_ROLE_REFINEMENT) != 0 ? Set.of()
                         : (flags & FLAG_SIMPLE_ROLES_STRICT) != 0 ? simpleRoles : subRoles,
-                simpleRoles, (flags & FLAG_UNCACHED) != 0), simpleRoles, regularPreorder, flags);
+                simpleRoles, flags), simpleRoles, regularPreorder, flags);
     }
 
     /**

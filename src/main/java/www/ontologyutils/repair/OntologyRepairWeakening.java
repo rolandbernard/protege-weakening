@@ -18,7 +18,7 @@ import www.ontologyutils.toolbox.*;
  * The ontology passed in parameter of {@code repair} should only contain
  * assertion or subclass axioms.
  */
-public class OntologyRepairWeakening extends OntologyRepair {
+public class OntologyRepairWeakening extends OntologyRepairRemoval {
     /**
      * Possible strategies for computing the reference ontology.
      */
@@ -51,48 +51,9 @@ public class OntologyRepairWeakening extends OntologyRepair {
         INTERSECTION_OF_SOME_MCS,
     }
 
-    /**
-     * Possible strategies for computing bad axioms.
-     */
-    public static enum BadAxiomStrategy {
-        /**
-         * Select any random refutable axiom in the ontology.
-         */
-        RANDOM,
-        /**
-         * Select any random axiom that is not in some maximal consistent subsets.
-         */
-        NOT_IN_SOME_MCS,
-        /**
-         * Select any random axiom that is not in the largest maximal consistent
-         * subsets.
-         */
-        NOT_IN_LARGEST_MCS,
-        /**
-         * Select the axiom that is in the least maximal consistent subsets.
-         */
-        IN_LEAST_MCS,
-        /**
-         * Select any random axiom that is in some minimal unsatisfiable subsets.
-         */
-        IN_SOME_MUS,
-        /**
-         * Select any random axiom that is in some minimal unsatisfiable subset.
-         */
-        IN_ONE_MUS,
-        /**
-         * Select any random axiom that is in the most minimal unsatisfiable subset.
-         */
-        IN_MOST_MUS,
-        /**
-         * Select any random axiom that is not in some maximal consistent subset.
-         */
-        NOT_IN_ONE_MCS
-    }
-
     private RefOntologyStrategy refOntologySource;
-    private BadAxiomStrategy badAxiomSource;
     private int weakeningFlags;
+    private boolean enhanceRef;
 
     /**
      * @param isRepaired
@@ -103,13 +64,16 @@ public class OntologyRepairWeakening extends OntologyRepair {
      *            The strategy for computing bad axioms.
      * @param weakeningFlags
      *            The flags to use for weakening
+     * @param enhanceRef
+     *            Use the reference ontology as a base ontology that is always
+     *            included in the repair.
      */
     public OntologyRepairWeakening(Predicate<Ontology> isRepaired, RefOntologyStrategy refOntologySource,
-            BadAxiomStrategy badAxiomSource, int weakeningFlags) {
-        super(isRepaired);
+            BadAxiomStrategy badAxiomSource, int weakeningFlags, boolean enhanceRef) {
+        super(isRepaired, badAxiomSource);
         this.refOntologySource = refOntologySource;
-        this.badAxiomSource = badAxiomSource;
         this.weakeningFlags = weakeningFlags;
+        this.enhanceRef = enhanceRef;
     }
 
     /**
@@ -117,7 +81,7 @@ public class OntologyRepairWeakening extends OntologyRepair {
      *            The monotone predicate testing whether an ontology is repaired.
      */
     public OntologyRepairWeakening(Predicate<Ontology> isRepaired) {
-        this(isRepaired, RefOntologyStrategy.ONE_MCS, BadAxiomStrategy.IN_SOME_MUS, AxiomWeakener.FLAG_DEFAULT);
+        this(isRepaired, RefOntologyStrategy.ONE_MCS, BadAxiomStrategy.IN_SOME_MUS, AxiomWeakener.FLAG_DEFAULT, true);
     }
 
     /**
@@ -207,63 +171,13 @@ public class OntologyRepairWeakening extends OntologyRepair {
         }
     }
 
-    private Stream<OWLAxiom> mostFrequentIn(Stream<Set<OWLAxiom>> sets) {
-        var occurrences = sets
-                .flatMap(set -> set.stream())
-                .collect(Collectors.groupingBy(Function.identity(), Collectors.counting()));
-        var max = occurrences.values().stream().max(Long::compareTo);
-        return occurrences.entrySet().stream()
-                .filter(entry -> entry.getValue() == max.get())
-                .map(entry -> entry.getKey());
-    }
-
-    /**
-     * @param ontology
-     *            The ontology to find bad axioms in.
-     * @return The stream of axioms between which to select the next axiom to
-     *         weaken.
-     */
-    public Stream<OWLAxiom> findBadAxioms(Ontology ontology) {
-        switch (badAxiomSource) {
-            case IN_LEAST_MCS: {
-                return mostFrequentIn(ontology.minimalCorrectionSubsets(isRepaired));
-            }
-            case NOT_IN_LARGEST_MCS: {
-                return mostFrequentIn(ontology.smallestMinimalCorrectionSubsets(isRepaired));
-            }
-            case NOT_IN_SOME_MCS:
-                return mostFrequentIn(ontology.someMinimalCorrectionSubsets(isRepaired));
-            case IN_SOME_MUS:
-                return mostFrequentIn(ontology.someMinimalUnsatisfiableSubsets(isRepaired));
-            case IN_MOST_MUS:
-                return mostFrequentIn(ontology.minimalUnsatisfiableSubsets(isRepaired));
-            case IN_ONE_MUS: {
-                var mus = ontology.minimalUnsatisfiableSubset(isRepaired);
-                if (mus == null) {
-                    return Stream.of();
-                } else {
-                    return mus.stream();
-                }
-            }
-            case NOT_IN_ONE_MCS: {
-                var mcs = ontology.minimalCorrectionSubset(isRepaired);
-                if (mcs == null) {
-                    return Stream.of();
-                } else {
-                    return mcs.stream();
-                }
-            }
-            case RANDOM:
-                return ontology.refutableAxioms();
-            default:
-                throw new IllegalArgumentException("Unimplemented bad axiom choice strategy.");
-        }
-    }
-
     @Override
     public void repair(Ontology ontology) {
         var refAxioms = Utils.randomChoice(getRefAxioms(ontology));
         infoMessage("Selected a reference ontology with " + refAxioms.size() + " axioms.");
+        if (enhanceRef) {
+            ontology.addStaticAxioms(refAxioms);
+        }
         try (var refOntology = ontology.cloneWithRefutable(refAxioms).withSeparateCache()) {
             var axiomWeakener = getWeakener(refOntology, ontology);
             while (!isRepaired(ontology)) {
@@ -294,6 +208,9 @@ public class OntologyRepairWeakening extends OntologyRepair {
                             ax -> getWeakener(refOntologyBase.cloneWithRefutable(ax), ontology));
                 }
                 var copy = ontology.clone();
+                if (enhanceRef) {
+                    copy.addStaticAxioms(refAxioms);
+                }
                 while (!isRepaired(copy)) {
                     var badAxioms = Utils.toList(findBadAxioms(copy));
                     infoMessage("Found " + badAxioms.size() + " possible bad axioms.");

@@ -62,6 +62,10 @@ public abstract class AxiomRefinement {
      * select from.
      */
     public static final int FLAG_NO_ROLE_REFINEMENT = 1 << 7;
+    /**
+     * Use a cache for subsumptions but do not infer extra information.
+     */
+    public static final int FLAG_BASIC_CACHED = 1 << 8;
 
     /**
      * Visitor implementing the actual weakening.

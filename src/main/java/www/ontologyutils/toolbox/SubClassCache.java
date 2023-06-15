@@ -1,5 +1,6 @@
 package www.ontologyutils.toolbox;
 
+import java.util.Collection;
 import java.util.function.BiPredicate;
 
 import org.semanticweb.owlapi.model.*;
@@ -9,6 +10,15 @@ import org.semanticweb.owlapi.model.*;
  * the logic.
  */
 public class SubClassCache extends PreorderCache<OWLClassExpression> {
+    /**
+     * @param domain
+     *            The domain of this preorder. May be incomplete.
+     */
+    public SubClassCache(Collection<OWLClassExpression> domain) {
+        super();
+        setupDomain(domain);
+    }
+
     @Override
     protected boolean compute(OWLClassExpression pred, OWLClassExpression succ,
             BiPredicate<OWLClassExpression, OWLClassExpression> order) {

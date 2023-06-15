@@ -41,7 +41,7 @@ public class OntologyRepairBestOfKWeakening extends OntologyRepairWeakening {
     public OntologyRepairBestOfKWeakening(Predicate<Ontology> isRepaired, RefOntologyStrategy refOntologySource,
             BadAxiomStrategy badAxiomSource, int weakeningFlags, Function<Ontology, Double> quality,
             int numberOfRounds) {
-        super(isRepaired, refOntologySource, badAxiomSource, weakeningFlags);
+        super(isRepaired, refOntologySource, badAxiomSource, weakeningFlags, false);
         this.quality = quality;
         this.numberOfRounds = numberOfRounds;
     }

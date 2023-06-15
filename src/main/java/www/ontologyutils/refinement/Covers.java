@@ -1,7 +1,7 @@
 package www.ontologyutils.refinement;
 
 import java.util.*;
-import java.util.function.Function;
+import java.util.function.*;
 import java.util.stream.*;
 
 import org.semanticweb.owlapi.model.*;
@@ -22,6 +22,15 @@ import www.ontologyutils.toolbox.*;
  * G., &amp; Toquard, N. (2020). Towards even more irresistible axiom weakening.
  */
 public class Covers {
+    /**
+     * Do not use a cache for the covers.
+     */
+    public static final int FLAG_UNCACHED = AxiomWeakener.FLAG_UNCACHED;
+    /**
+     * Use a cache for subsumptions but do not infer extra information.
+     */
+    public static final int FLAG_BASIC_CACHED = AxiomWeakener.FLAG_BASIC_CACHED;
+
     /**
      * Class representing a single cover direction. Contains functions for concepts,
      * roles, and integers.
@@ -57,10 +66,10 @@ public class Covers {
          */
         public Cover cached() {
             return new Cover(
-                    LruCache.wrapStreamFunction(conceptCover, Integer.MAX_VALUE),
-                    LruCache.wrapStreamFunction(roleCover, Integer.MAX_VALUE),
-                    LruCache.wrapStreamFunction(nonSimpleRoleCover, Integer.MAX_VALUE),
-                    LruCache.wrapStreamFunction(intCover, Integer.MAX_VALUE));
+                    LruCache.wrapStreamFunction(conceptCover),
+                    LruCache.wrapStreamFunction(roleCover),
+                    LruCache.wrapStreamFunction(nonSimpleRoleCover),
+                    LruCache.wrapStreamFunction(intCover));
         }
 
         /**
@@ -100,6 +109,8 @@ public class Covers {
     private Set<OWLClassExpression> subConcepts;
     private Set<OWLObjectPropertyExpression> subRoles;
     private Set<OWLObjectPropertyExpression> simpleRoles;
+    private BiPredicate<OWLClassExpression, OWLClassExpression> basicIsSubClass;
+    private BiPredicate<OWLObjectPropertyExpression, OWLObjectPropertyExpression> basicIsSubRole;
     private PreorderCache<OWLClassExpression> isSubClass;
     private PreorderCache<OWLObjectPropertyExpression> isSubRole;
 
@@ -115,21 +126,24 @@ public class Covers {
      * @param simpleRoles
      *            Return only roles that are in this set if asked for simple roles
      *            covers.
-     * @param uncached
-     *            If true, no subclass relation cache will be created.
+     * @param flags
+     *            Flags configuring behavior.
      */
     public Covers(Ontology refOntology, Set<OWLClassExpression> subConcepts, Set<OWLObjectPropertyExpression> subRoles,
-            Set<OWLObjectPropertyExpression> simpleRoles, boolean uncached) {
+            Set<OWLObjectPropertyExpression> simpleRoles, int flags) {
         df = Ontology.getDefaultDataFactory();
         this.refOntology = refOntology;
         this.subConcepts = subConcepts;
         this.subRoles = subRoles;
         this.simpleRoles = simpleRoles;
-        if (!uncached) {
-            this.isSubClass = new SubClassCache();
-            this.isSubClass.setupDomain(subConcepts);
-            this.isSubRole = new SubRoleCache();
-            this.isSubRole.setupDomain(subRoles);
+        this.basicIsSubClass = this::uncachedIsSubClass;
+        this.basicIsSubRole = this::uncachedIsSubRole;
+        if ((flags & FLAG_BASIC_CACHED) != 0) {
+            this.basicIsSubClass = LruCache.wrapFunction(basicIsSubClass);
+            this.basicIsSubRole = LruCache.wrapFunction(basicIsSubRole);
+        } else if ((flags & FLAG_UNCACHED) == 0) {
+            this.isSubClass = new SubClassCache(subConcepts);
+            this.isSubRole = new SubRoleCache(subRoles);
         }
     }
 
@@ -156,9 +170,9 @@ public class Covers {
      */
     private boolean isSubClass(OWLClassExpression subClass, OWLClassExpression superClass) {
         if (isSubClass != null) {
-            return isSubClass.computeIfAbsent(subClass, superClass, this::uncachedIsSubClass);
+            return isSubClass.computeIfAbsent(subClass, superClass, basicIsSubClass);
         } else {
-            return uncachedIsSubClass(subClass, superClass);
+            return basicIsSubClass.test(subClass, superClass);
         }
     }
 
@@ -185,9 +199,9 @@ public class Covers {
      */
     private boolean isSubRole(OWLObjectPropertyExpression subRole, OWLObjectPropertyExpression superRole) {
         if (isSubRole != null) {
-            return isSubRole.computeIfAbsent(subRole, superRole, this::uncachedIsSubRole);
+            return isSubRole.computeIfAbsent(subRole, superRole, basicIsSubRole);
         } else {
-            return uncachedIsSubRole(subRole, superRole);
+            return basicIsSubRole.test(subRole, superRole);
         }
     }
 

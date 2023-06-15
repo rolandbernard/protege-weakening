@@ -1,8 +1,7 @@
 package www.ontologyutils.repair;
 
 import java.util.Set;
-import java.util.function.Consumer;
-import java.util.function.Predicate;
+import java.util.function.*;
 import java.util.stream.Stream;
 
 import org.semanticweb.owlapi.model.*;
@@ -110,9 +109,8 @@ public abstract class OntologyRepair implements OntologyModification {
      * @param ontology
      *            The ontology to repair.
      * @return A stream of the repairs.
-     * @throws IllegalArgumentException
      */
-    public Stream<Ontology> multiple(Ontology ontology) throws IllegalArgumentException {
+    public Stream<Ontology> multiple(Ontology ontology) {
         return Stream.generate(() -> modified(ontology));
     }
 }
