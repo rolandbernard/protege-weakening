@@ -11,7 +11,7 @@ import java.util.stream.Stream;
  * overwritten to specify a maximal cache size.
  */
 public class LruCache<K, V> extends LinkedHashMap<K, V> {
-    private static class Tuple<K1,K2> {
+    private static class Tuple<K1, K2> {
         public final K1 first;
         public final K2 second;
 

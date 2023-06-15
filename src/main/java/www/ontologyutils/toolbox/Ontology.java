@@ -136,7 +136,14 @@ public class Ontology implements AutoCloseable {
                         reasoner.dispose();
                         reasoner = reasonerFactory.createReasoner(owlOntology);
                     } else {
-                        reasoner.flush();
+                        try {
+                            reasoner.flush();
+                        } catch (IllegalArgumentException e) {
+                            // HermitT likes to throw this and complain that it can not do incremental
+                            // updates.
+                            reasoner.dispose();
+                            reasoner = reasonerFactory.createReasoner(owlOntology);
+                        }
                     }
                 }
             }
@@ -169,7 +176,9 @@ public class Ontology implements AutoCloseable {
             } catch (ReasonerInternalException ex) {
                 // Nothing we can really do here, try again with a new reasoner.
                 ex.printStackTrace();
+                var owlOntology = reasoner.getRootOntology();
                 reasoner.dispose();
+                owlOntology.getOWLOntologyManager().removeOntology(owlOntology);
                 reasoner = null;
                 return withReasonerDo(ontology, action);
             } catch (Exception | OutOfMemoryError ex) {
@@ -897,7 +906,7 @@ public class Ontology implements AutoCloseable {
                     try (var ontology = new Ontology(staticAxioms, complement(axioms), reasonerCache)) {
                         return isRepaired.test(ontology);
                     }
-                })).distinct();
+                })).takeWhile(s -> s != null).distinct();
     }
 
     /**
@@ -912,7 +921,7 @@ public class Ontology implements AutoCloseable {
                     try (var ontology = new Ontology(staticAxioms, axioms, reasonerCache)) {
                         return !isRepaired.test(ontology);
                     }
-                })).distinct();
+                })).takeWhile(s -> s != null).distinct();
     }
 
     /**
@@ -1096,8 +1105,8 @@ public class Ontology implements AutoCloseable {
      *            The first set.
      * @param b
      *            The second set.
-     * @return double between 0 and 1. &gt; 0.5 if {@code a} contains more information.
-     *         &lt; 0.5 if {@code b} contains more information.
+     * @return double between 0 and 1. &gt; 0.5 if {@code a} contains more
+     *         information. &lt; 0.5 if {@code b} contains more information.
      */
     public static <T> double relativeInformationContent(Set<T> a, Set<T> b) {
         var onlyA = a.stream().filter(ax -> !b.contains(ax)).count();
@@ -1144,7 +1153,7 @@ public class Ontology implements AutoCloseable {
         var needed = Utils.toSet(logicalAxioms().flatMap(ax -> ax.getSignature().stream()));
         for (var ax : Utils.toList(axioms(AxiomType.DECLARATION))) {
             if (ax instanceof OWLDeclarationAxiom) {
-                var axiom = (OWLDeclarationAxiom)ax;
+                var axiom = (OWLDeclarationAxiom) ax;
                 if (!needed.contains(axiom.getEntity())) {
                     removeAxioms(ax);
                 }
