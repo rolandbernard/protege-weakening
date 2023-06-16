@@ -4,9 +4,16 @@
 <plugin>
     <!-- Views -->
 
-    <extension id="ExampleViewComponent" point="org.protege.editor.core.application.ViewComponent">
+    <extension id="ManualWeakeningView" point="org.protege.editor.core.application.ViewComponent">
         <label value="Manual Axiom Weakening" />
         <class value="www.ontologyutils.protege.view.AxiomWeakeningListView" />
+        <headerColor value="@org.protege.ontologycolor" />
+        <category value="@org.protege.ontologycategory" />
+    </extension>
+
+    <extension id="AutomaticRepairView" point="org.protege.editor.core.application.ViewComponent">
+        <label value="Automatic Repair" />
+        <class value="www.ontologyutils.protege.view.AutomaticRepairView" />
         <headerColor value="@org.protege.ontologycolor" />
         <category value="@org.protege.ontologycategory" />
     </extension>

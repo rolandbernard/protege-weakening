@@ -6,6 +6,7 @@ import javax.swing.*;
 
 import www.ontologyutils.protege.progress.ProgressWindow;
 import www.ontologyutils.repair.OntologyRepair;
+import www.ontologyutils.toolbox.CanceledException;
 import www.ontologyutils.toolbox.Ontology;
 
 public abstract class AutoRepair extends MutationAction {
@@ -29,6 +30,12 @@ public abstract class AutoRepair extends MutationAction {
                 });
             }
             return true;
+        } catch (CanceledException e) {
+            SwingUtilities.invokeLater(() -> {
+                JOptionPane.showMessageDialog(getOWLWorkspace(), e.getMessage(), "Repair canceled",
+                        JOptionPane.WARNING_MESSAGE);
+            });
+            return false;
         } catch (Exception e) {
             StringWriter sw = new StringWriter();
             PrintWriter pw = new PrintWriter(sw);

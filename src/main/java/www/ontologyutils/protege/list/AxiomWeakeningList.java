@@ -15,7 +15,9 @@ import org.protege.editor.owl.ui.renderer.*;
 import org.semanticweb.owlapi.model.*;
 
 import www.ontologyutils.protege.button.*;
+import www.ontologyutils.toolbox.MinimalSubsets;
 import www.ontologyutils.toolbox.Ontology;
+import www.ontologyutils.toolbox.Utils;
 
 public class AxiomWeakeningList extends OWLAxiomList implements LinkedObjectComponent {
     private OWLEditorKit editorKit;
@@ -42,8 +44,12 @@ public class AxiomWeakeningList extends OWLAxiomList implements LinkedObjectComp
         var reasonerFactory = editorKit.getOWLModelManager().getOWLReasonerManager()
                 .getCurrentReasonerFactory().getReasonerFactory();
         try (var ontology = Ontology.withAxiomsFrom(owlOntology, reasonerFactory)) {
-            return ontology.someMinimalUnsatisfiableSubsets(Ontology::isConsistent)
-                    .flatMap(set -> set.stream())
+            var refutableAxioms = Utils.toSet(ontology.refutableAxioms());
+            return MinimalSubsets.randomizedMinimalSubsets(refutableAxioms, 1, axioms -> {
+                try (var copy = ontology.cloneWithRefutable(axioms)) {
+                    return !copy.isConsistent();
+                }
+            }).flatMap(set -> set.stream())
                     .collect(Collectors.groupingBy(Function.identity(), Collectors.counting()));
         }
     }

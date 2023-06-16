@@ -68,6 +68,12 @@ public class Ontology implements AutoCloseable {
             references.add(ontology);
         }
 
+        private void actuallyDisposeOwlReasoner(OWLReasoner reasoner) {
+            var owlOntology = reasoner.getRootOntology();
+            reasoner.dispose();
+            owlOntology.getOWLOntologyManager().removeOntology(owlOntology);
+        }
+
         /**
          * @param ontology
          *            The ontology, no longer using the reasoner after this call.
@@ -76,9 +82,7 @@ public class Ontology implements AutoCloseable {
             references.remove(ontology);
             if (references.isEmpty()) {
                 for (var reasoner : unusedReasoners) {
-                    var owlOntology = reasoner.getRootOntology();
-                    reasoner.dispose();
-                    owlOntology.getOWLOntologyManager().removeOntology(owlOntology);
+                    actuallyDisposeOwlReasoner(reasoner);
                 }
                 unusedReasoners.clear();
             }
@@ -176,14 +180,12 @@ public class Ontology implements AutoCloseable {
             } catch (ReasonerInternalException ex) {
                 // Nothing we can really do here, try again with a new reasoner.
                 ex.printStackTrace();
-                var owlOntology = reasoner.getRootOntology();
-                reasoner.dispose();
-                owlOntology.getOWLOntologyManager().removeOntology(owlOntology);
+                actuallyDisposeOwlReasoner(reasoner);
                 reasoner = null;
                 return withReasonerDo(ontology, action);
             } catch (Exception | OutOfMemoryError ex) {
                 // Reusing the reasoner after an exception is not a good idea.
-                reasoner.dispose();
+                actuallyDisposeOwlReasoner(reasoner);
                 reasoner = null;
                 throw ex;
             } finally {
