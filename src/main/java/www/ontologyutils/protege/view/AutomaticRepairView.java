@@ -23,10 +23,11 @@ public class AutomaticRepairView extends AbstractOWLViewComponent {
     protected void initialiseOWLView() throws Exception {
         setLayout(new BorderLayout(5, 5));
 
-        var top = new JPanel(new GridLayout(2, 1, 0, 0));
-        var choice = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        var top = new JPanel();
+        top.setLayout(new BoxLayout(top, BoxLayout.Y_AXIS));
+        var choice = new JPanel(new WrapLayout(FlowLayout.LEFT));
         var algoPanel = new JPanel();
-        algoPanel.add(new Label("Repair using"));
+        algoPanel.add(new JLabel("Repair using"));
         var algo = new JComboBox<AbstractRepairPane>();
         algo.addItem(new McsRepairPane());
         algo.addItem(new RemovalRepairPane());
@@ -37,12 +38,14 @@ public class AutomaticRepairView extends AbstractOWLViewComponent {
             currentRepair = algo.getItemAt(algo.getSelectedIndex());
             top.remove(1);
             top.add(currentRepair, 1);
+            revalidate();
+            repaint();
         });
         algoPanel.add(algo);
         choice.add(algoPanel);
 
         var goalPanel = new JPanel();
-        goalPanel.add(new Label("Make ontology"));
+        goalPanel.add(new JLabel("Make ontology"));
         var goal = new JComboBox<String>();
         goal.addItem("Consistent");
         goal.addItem("Coherent");
@@ -50,7 +53,7 @@ public class AutomaticRepairView extends AbstractOWLViewComponent {
         var goals = Map.<String, Predicate<Ontology>>of("Consistent", Ontology::isConsistent, "Coherent",
                 Ontology::isCoherent);
         currentGoal = goals.get(goal.getItemAt(goal.getSelectedIndex()));
-        goal.addActionListener(e -> {
+        goal.addActionListener(e -> { 
             currentGoal = goals.get(goal.getItemAt(goal.getSelectedIndex()));
         });
         goalPanel.add(goal);

@@ -81,6 +81,9 @@ public class OntologyRepairBestOfKWeakening extends OntologyRepairWeakening {
     public void repair(Ontology ontology) {
         var refAxioms = Utils.randomChoice(getRefAxioms(ontology));
         infoMessage("Selected a reference ontology with " + refAxioms.size() + " axioms.");
+        if (enhanceRef) {
+            ontology.addStaticAxioms(refAxioms);
+        }
         var repairs = new ArrayList<Map.Entry<Set<OWLAxiom>, Double>>();
         try (var refOntology = ontology.cloneWithRefutable(refAxioms).withSeparateCache()) {
             var axiomWeakener = getWeakener(refOntology, ontology);

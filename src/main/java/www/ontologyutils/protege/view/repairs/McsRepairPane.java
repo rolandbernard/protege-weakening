@@ -1,6 +1,5 @@
 package www.ontologyutils.protege.view.repairs;
 
-import java.awt.*;
 import javax.swing.*;
 
 import java.util.Map;
@@ -13,28 +12,30 @@ import www.ontologyutils.toolbox.Ontology;
 public class McsRepairPane extends AbstractRepairPane {
     private McsComputationStrategy mcsStrategy;
 
-    public McsRepairPane() {
-        setLayout(new FlowLayout(FlowLayout.LEFT));
+    @Override
+    public String getName() {
+        return "Maximal Consistent Subset";
+    }
+
+    @Override
+    protected void addSettings() {
         var mcsPanel = new JPanel();
-        mcsPanel.add(new Label("Compute"));
+        mcsPanel.add(new JLabel("Compute"));
         var mcs = new JComboBox<String>();
-        mcs.addItem("One MCS");
-        mcs.addItem("Some MCS");
-        mcs.addItem("All MCS");
+        mcs.addItem("One maximal consistent set");
+        mcs.addItem("Some maximal consistent set");
+        mcs.addItem("All maximal consistent set");
         mcs.setSelectedIndex(0);
-        var goals = Map.<String, McsComputationStrategy>of("One MCS", McsComputationStrategy.ONE_MCS, "Some MCS",
-                McsComputationStrategy.SOME_MCS, "All MCS", McsComputationStrategy.ALL_MCS);
+        var goals = Map.<String, McsComputationStrategy>of(
+                "One maximal consistent set", McsComputationStrategy.ONE_MCS,
+                "Some maximal consistent set", McsComputationStrategy.SOME_MCS,
+                "All maximal consistent set", McsComputationStrategy.ALL_MCS);
         mcsStrategy = goals.get(mcs.getItemAt(mcs.getSelectedIndex()));
         mcs.addActionListener(e -> {
             mcsStrategy = goals.get(mcs.getItemAt(mcs.getSelectedIndex()));
         });
         mcsPanel.add(mcs);
         add(mcsPanel);
-    }
-
-    @Override
-    public String getName() {
-        return "Maximal Consistent Subset";
     }
 
     @Override

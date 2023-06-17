@@ -53,7 +53,7 @@ public class OntologyRepairWeakening extends OntologyRepairRemoval {
 
     private RefOntologyStrategy refOntologySource;
     private int weakeningFlags;
-    private boolean enhanceRef;
+    protected boolean enhanceRef;
 
     /**
      * @param isRepaired

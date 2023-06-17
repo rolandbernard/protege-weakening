@@ -156,6 +156,9 @@ public class OntologyRepairMctsWeakening extends OntologyRepairBestOfKWeakening 
     public void repair(Ontology ontology) {
         var refAxioms = Utils.randomChoice(getRefAxioms(ontology));
         infoMessage("Selected a reference ontology with " + refAxioms.size() + " axioms.");
+        if (enhanceRef) {
+            ontology.addStaticAxioms(refAxioms);
+        }
         var bestAxioms = new Set<?>[] { Set.of() };
         var bestQuality = new Double[] { Double.NEGATIVE_INFINITY };
         try (var refOntology = ontology.cloneWithRefutable(refAxioms).withSeparateCache()) {
