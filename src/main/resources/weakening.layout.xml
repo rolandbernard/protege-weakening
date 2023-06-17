@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<layout>
+    <VSNode splits="0.3862212943632563 0.36377870563674314">
+        <CNode>
+            <Component label="Automatic Repair">
+                <Property id="pluginId" value="protege-weakening.AutomaticRepairView"/>
+            </Component>
+        </CNode>
+        <CNode>
+            <Component label="Manual Axiom Weakening">
+                <Property id="pluginId" value="protege-weakening.ManualWeakeningView"/>
+            </Component>
+        </CNode>
+    </VSNode>
+</layout>
