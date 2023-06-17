@@ -39,9 +39,9 @@ public class OntologyRepairBestOfKWeakening extends OntologyRepairWeakening {
      *            The number of repairs to perform.
      */
     public OntologyRepairBestOfKWeakening(Predicate<Ontology> isRepaired, RefOntologyStrategy refOntologySource,
-            BadAxiomStrategy badAxiomSource, int weakeningFlags, Function<Ontology, Double> quality,
+            BadAxiomStrategy badAxiomSource, int weakeningFlags, boolean enhanceRef, Function<Ontology, Double> quality,
             int numberOfRounds) {
-        super(isRepaired, refOntologySource, badAxiomSource, weakeningFlags, false);
+        super(isRepaired, refOntologySource, badAxiomSource, weakeningFlags, enhanceRef);
         this.quality = quality;
         this.numberOfRounds = numberOfRounds;
     }
@@ -54,7 +54,7 @@ public class OntologyRepairBestOfKWeakening extends OntologyRepairWeakening {
      */
     public OntologyRepairBestOfKWeakening(Predicate<Ontology> isRepaired, int numberOfRounds) {
         this(isRepaired, RefOntologyStrategy.INTERSECTION_OF_SOME_MCS, BadAxiomStrategy.IN_ONE_MUS,
-                AxiomWeakener.FLAG_DEFAULT, o -> (double) o.inferredTaxonomyAxioms().count(), numberOfRounds);
+                AxiomWeakener.FLAG_DEFAULT, false, o -> (double) o.inferredTaxonomyAxioms().count(), numberOfRounds);
     }
 
     /**
@@ -99,9 +99,9 @@ public class OntologyRepairBestOfKWeakening extends OntologyRepairWeakening {
                             var weakerAxiom = Utils.randomChoice(weakerAxioms);
                             copy.replaceAxiom(badAxiom, weakerAxiom);
                         }
-                        infoMessage("Found a repair.");
                         var result = new AbstractMap.SimpleEntry<>(Utils.toSet(copy.refutableAxioms()),
                                 quality.apply(copy));
+                        infoMessage("Found repair with quality  " + result.getValue() + ".");
                         synchronized (repairs) {
                             repairs.add(result);
                         }
@@ -115,9 +115,10 @@ public class OntologyRepairBestOfKWeakening extends OntologyRepairWeakening {
                 throw new CanceledException();
             }
         }
-        var bestAxioms = repairs.stream()
+        var bestResult = repairs.stream()
                 .max(Comparator.comparingDouble(e -> e.getValue()))
-                .get().getKey();
-        ontology.setRefutableAxioms(bestAxioms);
+                .get();
+        infoMessage("Selected repair with quality  " + bestResult.getValue() + ".");
+        ontology.setRefutableAxioms(bestResult.getKey());
     }
 }

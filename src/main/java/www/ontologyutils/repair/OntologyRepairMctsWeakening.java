@@ -115,9 +115,9 @@ public class OntologyRepairMctsWeakening extends OntologyRepairBestOfKWeakening 
      *            The number of repairs to perform.
      */
     public OntologyRepairMctsWeakening(Predicate<Ontology> isRepaired, RefOntologyStrategy refOntologySource,
-            BadAxiomStrategy badAxiomSource, int weakeningFlags, Function<Ontology, Double> quality,
+            BadAxiomStrategy badAxiomSource, int weakeningFlags, boolean enhanceRef, Function<Ontology, Double> quality,
             int numberOfRounds) {
-        super(isRepaired, refOntologySource, badAxiomSource, weakeningFlags, quality, numberOfRounds);
+        super(isRepaired, refOntologySource, badAxiomSource, weakeningFlags, enhanceRef, quality, numberOfRounds);
     }
 
     /**
@@ -128,7 +128,7 @@ public class OntologyRepairMctsWeakening extends OntologyRepairBestOfKWeakening 
      */
     public OntologyRepairMctsWeakening(Predicate<Ontology> isRepaired, int numberOfRounds) {
         this(isRepaired, RefOntologyStrategy.INTERSECTION_OF_SOME_MCS, BadAxiomStrategy.IN_ONE_MUS,
-                AxiomWeakener.FLAG_DEFAULT, o -> (double) o.inferredTaxonomyAxioms().count(), numberOfRounds);
+                AxiomWeakener.FLAG_DEFAULT, false, o -> (double) o.inferredTaxonomyAxioms().count(), numberOfRounds);
     }
 
     /**
@@ -165,6 +165,7 @@ public class OntologyRepairMctsWeakening extends OntologyRepairBestOfKWeakening 
             var axiomWeakener = getWeakener(refOntology, ontology);
             var game = new Game(ontology, axiomWeakener, onto -> {
                 var thisQuality = quality.apply(onto);
+                infoMessage("Found repair with quality  " + thisQuality + ".");
                 synchronized (bestQuality) {
                     if (thisQuality > bestQuality[0]) {
                         bestAxioms[0] = Utils.toSet(onto.axioms());
@@ -189,6 +190,7 @@ public class OntologyRepairMctsWeakening extends OntologyRepairBestOfKWeakening 
                 }
             }
         }
+        infoMessage("Selected repair with quality  " + bestQuality[0] + ".");
         ontology.setRefutableAxioms((Set<OWLAxiom>) bestAxioms[0]);
     }
 }

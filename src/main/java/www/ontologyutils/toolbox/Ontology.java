@@ -21,7 +21,7 @@ import org.semanticweb.owlapi.util.OWLObjectPropertyManager;
  * to the {@code OWLOntology} object and the {@code OWLreasoner}.
  */
 public class Ontology implements AutoCloseable {
-    private static final OWLOntologyManager defaultManager = OWLManager.createOWLOntologyManager();
+    private static final OWLOntologyManager defaultManager = OWLManager.createConcurrentOWLOntologyManager();
 
     /**
      * This is only here for statistics
@@ -107,7 +107,8 @@ public class Ontology implements AutoCloseable {
         public OWLReasoner getNewOwlReasoner(Ontology ontology) {
             try {
                 var owlOntology = defaultManager.createOntology();
-                defaultManager.addAxioms(owlOntology, Utils.toSet(ontology.axioms()));
+                var manager = owlOntology.getOWLOntologyManager();
+                manager.addAxioms(owlOntology, Utils.toSet(ontology.axioms()));
                 return reasonerFactory.createReasoner(owlOntology);
             } catch (OWLOntologyCreationException e) {
                 throw Utils.panic(e);

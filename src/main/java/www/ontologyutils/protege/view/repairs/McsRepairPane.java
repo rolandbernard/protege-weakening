@@ -10,7 +10,7 @@ import www.ontologyutils.repair.OntologyRepairRandomMcs.McsComputationStrategy;
 import www.ontologyutils.toolbox.Ontology;
 
 public class McsRepairPane extends AbstractRepairPane {
-    private McsComputationStrategy mcsStrategy;
+    protected McsComputationStrategy mcsStrategy;
 
     @Override
     public String getName() {

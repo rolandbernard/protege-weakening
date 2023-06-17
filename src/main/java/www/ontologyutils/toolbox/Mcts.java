@@ -81,6 +81,7 @@ public class Mcts<M> implements AutoCloseable {
     }
 
     private class Node extends NodeStats {
+        public boolean complete = false;
         public Map<M, Node> children;
 
         public synchronized boolean isExpanded() {
@@ -99,6 +100,15 @@ public class Mcts<M> implements AutoCloseable {
                 moves.forEach(move -> {
                     children.put(move, new Node());
                 });
+            }
+        }
+
+        public synchronized void computeCompete() {
+            complete = true;
+            for (var child : children.values()) {
+                if (!child.complete) {
+                    complete = false;
+                }
             }
         }
 
@@ -129,9 +139,10 @@ public class Mcts<M> implements AutoCloseable {
 
         public synchronized Map.Entry<M, Node> selectChild() {
             return children.entrySet().stream()
+                    .filter(e -> !skipComplete || !e.getValue().complete)
                     .max(Comparator.comparingDouble(
                             e -> getUcbScore(e.getKey(), e.getValue())))
-                    .get();
+                    .orElse(null);
         }
     }
 
@@ -139,6 +150,7 @@ public class Mcts<M> implements AutoCloseable {
     private int expThreshold;
     private double raveBalance;
     private int virtualLoss;
+    private boolean skipComplete;
 
     private Game<M> game;
     private Node root;
@@ -160,8 +172,12 @@ public class Mcts<M> implements AutoCloseable {
      * @param virtualLoss
      *            The temporary loss applied for discouraging multiple threads from
      *            exploring the same path.
+     * @param skipComplete
+     *            Skip paths that have been fully explored, this will make visit
+     *            counts not useful.
      */
-    public Mcts(Game<M> game, double expConstant, int expThreshold, double raveBalance, int virtualLoss) {
+    public Mcts(Game<M> game, double expConstant, int expThreshold, double raveBalance, int virtualLoss,
+            boolean skipComplete) {
         this.expConstant = expConstant;
         this.expThreshold = expThreshold;
         this.raveBalance = raveBalance;
@@ -172,6 +188,7 @@ public class Mcts<M> implements AutoCloseable {
         this.minValue = Double.POSITIVE_INFINITY;
         this.maxValue = Double.NEGATIVE_INFINITY;
         this.virtualLoss = virtualLoss;
+        this.skipComplete = skipComplete;
     }
 
     /**
@@ -179,7 +196,7 @@ public class Mcts<M> implements AutoCloseable {
      *            The game to search.
      */
     public Mcts(Game<M> game) {
-        this(game, 1.5, 0, 1, 5);
+        this(game, 1.5, 0, 1, 5, true);
     }
 
     private boolean useRave() {
@@ -197,18 +214,21 @@ public class Mcts<M> implements AutoCloseable {
         return game.terminalValue();
     }
 
-    private void backpropagate(Collection<Map.Entry<M, Node>> steps, double value) {
+    private void backpropagate(List<Map.Entry<M, Node>> steps, double value) {
         if (value < minValue) {
             minValue = value;
         } else if (value > maxValue) {
             maxValue = value;
         }
+        Collections.reverse(steps);
         for (var step : steps) {
             if (useRave()) {
                 getMoveStats(step.getKey()).addVisit(value);
             }
-            step.getValue().addVisit(value);
-            step.getValue().removeVirtualLoss();
+            var node = step.getValue();
+            node.addVisit(value);
+            node.removeVirtualLoss();
+            node.computeCompete();
         }
         root.addVisit(value);
     }
@@ -223,6 +243,9 @@ public class Mcts<M> implements AutoCloseable {
             var node = root;
             while (node.isExpanded()) {
                 var actionNode = node.selectChild();
+                if (actionNode == null) {
+                    return;
+                }
                 node = actionNode.getValue();
                 node.addVirtualLoss();
                 searchGame.performMove(actionNode.getKey());

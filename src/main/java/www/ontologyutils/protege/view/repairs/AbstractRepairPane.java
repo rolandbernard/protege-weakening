@@ -18,7 +18,7 @@ public abstract class AbstractRepairPane extends JPanel {
     public abstract String getName();
 
     protected abstract void addSettings();
-    
+
     public abstract OntologyRepair getRepair(Predicate<Ontology> isRepaired);
 
     @Override

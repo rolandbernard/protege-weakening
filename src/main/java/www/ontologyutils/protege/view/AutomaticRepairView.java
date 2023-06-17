@@ -32,6 +32,9 @@ public class AutomaticRepairView extends AbstractOWLViewComponent {
         algo.addItem(new McsRepairPane());
         algo.addItem(new RemovalRepairPane());
         algo.addItem(new WeakeningRepairPane());
+        algo.addItem(new BestMcsRepairPane());
+        algo.addItem(new BestOfKWeakeningRepairPane());
+        algo.addItem(new MctsWeakeningRepairPane());
         algo.setSelectedIndex(0);
         currentRepair = algo.getItemAt(algo.getSelectedIndex());
         algo.addActionListener(e -> {
@@ -53,7 +56,7 @@ public class AutomaticRepairView extends AbstractOWLViewComponent {
         var goals = Map.<String, Predicate<Ontology>>of("Consistent", Ontology::isConsistent, "Coherent",
                 Ontology::isCoherent);
         currentGoal = goals.get(goal.getItemAt(goal.getSelectedIndex()));
-        goal.addActionListener(e -> { 
+        goal.addActionListener(e -> {
             currentGoal = goals.get(goal.getItemAt(goal.getSelectedIndex()));
         });
         goalPanel.add(goal);
