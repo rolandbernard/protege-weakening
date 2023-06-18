@@ -21,7 +21,7 @@ import org.semanticweb.owlapi.util.OWLObjectPropertyManager;
  * to the {@code OWLOntology} object and the {@code OWLreasoner}.
  */
 public class Ontology implements AutoCloseable {
-    private static final OWLOntologyManager defaultManager = OWLManager.createOWLOntologyManager();
+    private static final OWLOntologyManager defaultManager = OWLManager.createConcurrentOWLOntologyManager();
 
     /**
      * This is only here for statistics
@@ -68,6 +68,12 @@ public class Ontology implements AutoCloseable {
             references.add(ontology);
         }
 
+        private void actuallyDisposeOwlReasoner(OWLReasoner reasoner) {
+            var owlOntology = reasoner.getRootOntology();
+            reasoner.dispose();
+            owlOntology.getOWLOntologyManager().removeOntology(owlOntology);
+        }
+
         /**
          * @param ontology
          *            The ontology, no longer using the reasoner after this call.
@@ -76,9 +82,7 @@ public class Ontology implements AutoCloseable {
             references.remove(ontology);
             if (references.isEmpty()) {
                 for (var reasoner : unusedReasoners) {
-                    var owlOntology = reasoner.getRootOntology();
-                    reasoner.dispose();
-                    owlOntology.getOWLOntologyManager().removeOntology(owlOntology);
+                    actuallyDisposeOwlReasoner(reasoner);
                 }
                 unusedReasoners.clear();
             }
@@ -103,7 +107,8 @@ public class Ontology implements AutoCloseable {
         public OWLReasoner getNewOwlReasoner(Ontology ontology) {
             try {
                 var owlOntology = defaultManager.createOntology();
-                defaultManager.addAxioms(owlOntology, Utils.toSet(ontology.axioms()));
+                var manager = owlOntology.getOWLOntologyManager();
+                manager.addAxioms(owlOntology, Utils.toSet(ontology.axioms()));
                 return reasonerFactory.createReasoner(owlOntology);
             } catch (OWLOntologyCreationException e) {
                 throw Utils.panic(e);
@@ -176,14 +181,12 @@ public class Ontology implements AutoCloseable {
             } catch (ReasonerInternalException ex) {
                 // Nothing we can really do here, try again with a new reasoner.
                 ex.printStackTrace();
-                var owlOntology = reasoner.getRootOntology();
-                reasoner.dispose();
-                owlOntology.getOWLOntologyManager().removeOntology(owlOntology);
+                actuallyDisposeOwlReasoner(reasoner);
                 reasoner = null;
                 return withReasonerDo(ontology, action);
             } catch (Exception | OutOfMemoryError ex) {
                 // Reusing the reasoner after an exception is not a good idea.
-                reasoner.dispose();
+                actuallyDisposeOwlReasoner(reasoner);
                 reasoner = null;
                 throw ex;
             } finally {

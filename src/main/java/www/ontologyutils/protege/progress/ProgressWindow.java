@@ -78,6 +78,7 @@ public class ProgressWindow {
     public void addMessage(String msg) {
         SwingUtilities.invokeLater(() -> {
             messages.append("[" + getTimeStamp() + "] " + msg + "\n");
+            messages.scrollRectToVisible(new Rectangle(1, messages.getHeight(), 1, 1));
         });
     }
 
